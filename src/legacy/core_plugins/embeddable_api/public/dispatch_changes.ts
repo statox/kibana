@@ -17,6 +17,12 @@
  * under the License.
  */
 
-export { SayHelloAction } from './say_hello_action';
-export { EditModeAction } from './edit_mode_action';
-export { ChangeViewModeAction } from './change_view_mode';
+import { Embeddable, EmbeddableInput } from './embeddables';
+
+export function dispatchInputChanges<I extends EmbeddableInput>(embeddable: Embeddable<I>, changes: Partial<I>) {
+  if (embeddable.parent) {
+    embeddable.parent.updateEmbeddableInput(embeddable.id, changes);
+  } else {
+    embeddable.
+  }
+}

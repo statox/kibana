@@ -25,6 +25,7 @@ import {
   EmbeddableFactory,
   ErrorEmbeddable,
   triggerRegistry,
+  Container,
 } from 'plugins/embeddable_api/index';
 import chrome from 'ui/chrome';
 import { SavedSearchLoader } from '../types';
@@ -89,14 +90,11 @@ export class SearchEmbeddableFactory extends EmbeddableFactory<
    * @param onEmbeddableStateChanged
    * @return
    */
-  public async create(initialInput: SearchInput): Promise<SearchEmbeddable | ErrorEmbeddable> {
-    if (!initialInput.savedObjectId) {
-      return new ErrorEmbeddable({
-        ...initialInput,
-        errorMessage: 'Need a saved object id to load search embeddable',
-      });
-    }
-
+  public async createFromSavedObject(
+    savedObjectId: string,
+    input: Partial<SearchInput> & { id: string },
+    parent?: Container
+  ): Promise<SearchEmbeddable | ErrorEmbeddable> {
     const $injector = await chrome.dangerouslyGetActiveInjector();
 
     const $compile = $injector.get<ng.ICompileService>('$compile');
@@ -104,33 +102,39 @@ export class SearchEmbeddableFactory extends EmbeddableFactory<
     const courier = $injector.get<unknown>('courier');
     const searchLoader = $injector.get<SavedSearchLoader>('savedSearches');
 
-    const editUrl = chrome.addBasePath(
-      `/app/kibana${searchLoader.urlFor(initialInput.savedObjectId)}`
-    );
+    const editUrl = chrome.addBasePath(`/app/kibana${searchLoader.urlFor(savedObjectId)}`);
+
     // can't change this to be async / awayt, because an Anglular promise is expected to be returned.
     return searchLoader
-      .get(initialInput.savedObjectId)
+      .get(savedObjectId)
       .then(savedObject => {
         return new SearchEmbeddable(
           {
             courier,
-            editable: uiCapabilities.discover.save as boolean,
             savedSearch: savedObject,
-            editUrl,
             $rootScope,
             $compile,
-            factory: this,
           },
-          initialInput
+          {
+            editUrl,
+            editable: uiCapabilities.discover.save as boolean,
+            title: savedObject.title,
+            indexPatterns: _.compact([savedObject.searchSource.getField('index')]),
+            ...input,
+          },
+          parent
         );
       })
       .catch((e: Error) => {
         console.error(e); // eslint-disable-line no-console
-        return new ErrorEmbeddable({
-          ...initialInput,
-          errorMessage: `${e.message}\n${e.stack}`,
-        });
+        return new ErrorEmbeddable(e, input.id);
       });
+  }
+
+  public async create(input: SearchInput) {
+    return Promise.resolve(
+      new ErrorEmbeddable('Saved searches can only be created from a saved object', input.id)
+    );
   }
 }
 

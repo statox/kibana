@@ -17,4 +17,10 @@
  * under the License.
  */
 
-export { Container, ContainerInput, ContainerOutput, PanelState } from './container';
+export {
+  Container,
+  ContainerInput,
+  ContainerOutput,
+  PanelState,
+  EmbeddableInputMissingFromContainer,
+} from './container';

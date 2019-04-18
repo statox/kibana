@@ -16,7 +16,7 @@ export const advancedEmbeddableApi = (kibana: any) => {
       mappings,
       embeddableActions: [
         'plugins/advanced_embeddable_api/actions',
-        'plugins/advanced_embeddable_api/dynamic_actions/register_dynamic_actions',
+        'plugins/advanced_embeddable_api/dynamic_actions/inject_dynamic_actions',
       ],
       embeddableFactories: [
         'plugins/advanced_embeddable_api/user_embeddable/user_embeddable_factory',

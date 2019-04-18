@@ -20,13 +20,14 @@ import { Embeddable, EmbeddableInput } from 'plugins/embeddable_api/index';
 import React, { ReactNode } from 'react';
 import ReactDom from 'react-dom';
 import { EmbeddableOutput } from 'plugins/embeddable_api/embeddables';
+import { Container } from 'plugins/embeddable_api/containers';
 import { HELLO_WORLD_EMBEDDABLE } from './hello_world_embeddable_factory';
 import { HelloWorldEmbeddableComponent } from './hello_world_embeddable_component';
 
 export interface HelloWorldInput extends EmbeddableInput {
   firstName: string;
   lastName?: string;
-  title?: string;
+  nameTitle?: string;
 }
 
 export interface HelloWorldOutput extends EmbeddableOutput {
@@ -37,26 +38,29 @@ export class HelloWorldEmbeddable extends Embeddable<HelloWorldInput, HelloWorld
   private unsubscribe: () => void;
   private node?: Element;
 
-  constructor(initialInput: HelloWorldInput) {
-    super(HELLO_WORLD_EMBEDDABLE, initialInput, { name: '' });
+  constructor(initialInput: HelloWorldInput, parent?: Container) {
+    super(HELLO_WORLD_EMBEDDABLE, initialInput, { name: '' }, parent);
 
     this.unsubscribe = this.subscribeToInputChanges(() => {
       this.updateOutput({
         name: this.getFullName(),
+        title: this.input.title || this.getFullName(),
       });
     });
   }
 
   public getFullName() {
-    return `${this.input.title} ${this.input.firstName} ${this.input.lastName}`;
+    const { nameTitle, firstName, lastName } = this.input;
+    const nameParts = [nameTitle, firstName, lastName].filter(name => name !== undefined);
+    return nameParts.join(' ');
   }
 
-  public getDoctorate() {
-    this.updateInput({ title: 'Dr.' });
+  public graduateWithPhd() {
+    this.updateInput({ nameTitle: 'Dr.' });
   }
 
   public loseDoctorate() {
-    this.updateInput({ title: '' });
+    this.updateInput({ nameTitle: '' });
   }
 
   public render(node: HTMLElement) {
@@ -65,9 +69,7 @@ export class HelloWorldEmbeddable extends Embeddable<HelloWorldInput, HelloWorld
   }
 
   public destroy() {
-    if (this.node) {
-      ReactDom.unmountComponentAtNode(this.node);
-    }
+    super.destroy();
     this.unsubscribe();
   }
 }

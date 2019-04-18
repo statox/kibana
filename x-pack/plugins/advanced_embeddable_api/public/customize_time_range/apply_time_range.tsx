@@ -11,27 +11,28 @@ import {
   Embeddable,
   TimeRange,
   PanelState,
+  EmbeddableInput,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 
 import { APPLY_TIME_RANGE } from './apply_time_range_factory';
 import { DynamicAction } from '../dynamic_actions';
-import { ActionSavedObject } from '../dynamic_actions';
+import { SerializedDynamicAction } from '../dynamic_actions/action_saved_object';
 
-interface ApplyTimeRangeContainerInput extends ContainerInput {
-  panels: { [key: string]: PanelState };
+interface TimeRangeEmbeddableInput extends EmbeddableInput {
+  timeRange?: TimeRange;
 }
 
 export class ApplyTimeRangeAction extends DynamicAction {
   public timeRange?: TimeRange;
 
-  constructor(actionSavedObject?: ActionSavedObject) {
+  constructor(actionSavedObject?: SerializedDynamicAction) {
     super({ actionSavedObject, type: APPLY_TIME_RANGE });
     if (
       actionSavedObject &&
-      actionSavedObject.attributes.configuration &&
-      actionSavedObject.attributes.configuration !== ''
+      actionSavedObject.configuration &&
+      actionSavedObject.configuration !== ''
     ) {
-      this.timeRange = JSON.parse(actionSavedObject.attributes.configuration);
+      this.timeRange = JSON.parse(actionSavedObject.configuration);
     }
   }
 
@@ -54,12 +55,12 @@ export class ApplyTimeRangeAction extends DynamicAction {
   }
 
   public getIcon({ embeddable, container }: { embeddable: Embeddable; container: Container }) {
-    const customization = container.getInput().panels[embeddable.id].customization;
-    if (!this.timeRange && (!customization || !customization.timeRange)) {
+    const input = container.getExplicitEmbeddableInput(embeddable.id);
+    if (!this.timeRange && input.timeRange === undefined) {
       return <EuiIcon type="check" />;
     }
 
-    if (customization && _.isEqual(this.timeRange, customization.timeRange)) {
+    if (input.timeRange && _.isEqual(this.timeRange, input.timeRange)) {
       return <EuiIcon type="check" />;
     }
 
@@ -70,23 +71,12 @@ export class ApplyTimeRangeAction extends DynamicAction {
     return false;
   }
 
-  public execute({
-    embeddable,
-    container,
-  }: {
-    embeddable: Embeddable;
-    container: Container<ApplyTimeRangeContainerInput>;
-  }) {
+  public execute({ embeddable, container }: { embeddable: Embeddable; container: Container }) {
     if (!embeddable || !container) {
       return;
     }
-    const panelId = embeddable.id;
-    const newContainerInputState = _.cloneDeep(container.getInput());
-    if (this.timeRange) {
-      newContainerInputState.panels[panelId].customization.timeRange = this.timeRange;
-    } else {
-      delete newContainerInputState.panels[panelId].customization.timeRange;
-    }
-    container.updateInput(newContainerInputState);
+    container.updateEmbeddableInput<TimeRangeEmbeddableInput>(embeddable.id, {
+      timeRange: this.timeRange,
+    });
   }
 }

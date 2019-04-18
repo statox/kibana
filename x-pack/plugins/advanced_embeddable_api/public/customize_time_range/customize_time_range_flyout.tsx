@@ -12,23 +12,17 @@ import chrome from 'ui/chrome';
 import {
   DashboardContainer,
   DashboardEmbeddable,
-} from '../../../../../src/legacy/core_plugins/dashboard_embeddables/public';
+} from '../../../../../src/legacy/core_plugins/dashboard_embeddable/public';
 import {
-  getActionsForTrigger,
+  actionRegistry,
   CONTEXT_MENU_TRIGGER,
   Trigger,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 import { AddTimeRange } from './add_time_range';
 import { ApplyTimeRangeAction } from './apply_time_range';
 import { APPLY_TIME_RANGE } from './apply_time_range_factory';
-import {
-  getActionIdsForTrigger,
-  deleteAction,
-  addAction,
-  addTriggerActionMapping,
-  removeTriggerActionMapping,
-  isDynamicAction,
-} from '../dynamic_actions';
+import { deleteAction, removeTriggerActionMapping, isDynamicAction } from '../dynamic_actions';
+import { hasDynamicActions } from '../dynamic_actions/actionable_embeddable';
 
 interface CustomizeTimeRangeProps {
   container: DashboardContainer;
@@ -49,7 +43,7 @@ export class CustomizeTimeRangeFlyout extends Component<CustomizeTimeRangeProps,
   }
 
   public async componentDidMount() {
-    const viewModeActions = await getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
+    const viewModeActions = await actionRegistry.getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
       embeddable: this.props.embeddable,
     });
 
@@ -79,7 +73,7 @@ export class CustomizeTimeRangeFlyout extends Component<CustomizeTimeRangeProps,
   }
 
   private doesDefaultTimeRangeOptionExist = async () => {
-    const actions = await getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
+    const actions = await actionRegistry.getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
       embeddable: this.props.embeddable,
     });
     return actions.find(
@@ -93,40 +87,36 @@ export class CustomizeTimeRangeFlyout extends Component<CustomizeTimeRangeProps,
   private ensureDefaultTimeRangeOptionExists = async () => {
     const exists = await this.doesDefaultTimeRangeOptionExist();
     if (!exists) {
-      let defaultTimeRangeAction = new ApplyTimeRangeAction();
+      const defaultTimeRangeAction = new ApplyTimeRangeAction();
       defaultTimeRangeAction.timeRange = undefined;
       defaultTimeRangeAction.title = 'Use time range from dashboard';
       defaultTimeRangeAction.embeddableId = this.props.embeddable.id;
-      defaultTimeRangeAction = await addAction(defaultTimeRangeAction);
-
-      await addTriggerActionMapping({
-        triggerId: CONTEXT_MENU_TRIGGER,
-        actionId: defaultTimeRangeAction.id,
-      });
-
-      const newActions = _.clone(this.state.timeRangeActions);
-      newActions.push(defaultTimeRangeAction);
-      this.setState({ timeRangeActions: newActions });
+      defaultTimeRangeAction.triggerId = CONTEXT_MENU_TRIGGER;
+      this.addAction(defaultTimeRangeAction);
     }
   };
+
+  private addAction(action: ApplyTimeRangeAction) {
+    const existingDynamicActions = hasDynamicActions(this.props.embeddable)
+      ? this.props.embeddable.getInput().dynamicActions
+      : [];
+
+    existingDynamicActions.push(action.serialized());
+    this.props.embeddable.updateInput({ dynamicActions: existingDynamicActions });
+    const newActions = _.clone(this.state.timeRangeActions);
+    newActions.push(action);
+    this.setState({ timeRangeActions: newActions });
+  }
 
   private addTimeRange = async (timeRange: TimeRange) => {
     await this.ensureDefaultTimeRangeOptionExists();
 
-    let applyTimeRangeAction = new ApplyTimeRangeAction();
+    const applyTimeRangeAction = new ApplyTimeRangeAction();
     applyTimeRangeAction.timeRange = timeRange;
     applyTimeRangeAction.title = JSON.stringify(timeRange);
     applyTimeRangeAction.embeddableId = this.props.embeddable.id;
-    applyTimeRangeAction = await addAction(applyTimeRangeAction);
-
-    await addTriggerActionMapping({
-      triggerId: CONTEXT_MENU_TRIGGER,
-      actionId: applyTimeRangeAction.id,
-    });
-
-    const newActions = _.clone(this.state.timeRangeActions);
-    newActions.push(applyTimeRangeAction);
-    this.setState({ timeRangeActions: newActions });
+    applyTimeRangeAction.triggerId = CONTEXT_MENU_TRIGGER;
+    this.addAction(applyTimeRangeAction);
   };
 
   private renderExistingActions() {

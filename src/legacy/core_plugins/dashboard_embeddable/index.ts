@@ -19,7 +19,7 @@
 
 import { resolve } from 'path';
 
-// tslint:disable-next-line
+// eslint-disable-next-line import/no-default-export
 export default function(kibana: any) {
   return new kibana.Plugin({
     uiExports: {

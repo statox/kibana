@@ -18,32 +18,33 @@
  */
 import { I18nProvider } from '@kbn/i18n/react';
 import { isEqual } from 'lodash';
-import React, { ReactNode, ReactElement } from 'react';
+import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom';
 import { Adapters } from 'ui/inspector';
-import { Container } from '../containers';
+import { Container, EmbeddableInputMissingFromContainer } from '../containers';
 import { EmbeddablePanel } from '../panel';
 import { Trigger } from '../triggers';
 import { OutputSpec, ViewMode } from '../types';
+import { IEmbeddable } from './iembeddable';
 
 export interface EmbeddableInput {
   viewMode?: ViewMode;
   title?: string;
   id: string;
-  customization?: { [key: string]: any };
   savedObjectId?: string;
   editable?: boolean;
 }
 
 export interface EmbeddableOutput {
   editUrl?: string;
+  title?: string;
 }
 
 export class Embeddable<
   I extends EmbeddableInput = EmbeddableInput,
   O extends EmbeddableOutput = EmbeddableOutput
-> {
-  public container?: Container;
+> implements IEmbeddable<I, O> {
+  public readonly parent?: Container;
   public readonly isContainer: boolean = false;
   public readonly type: string;
   public readonly id: string;
@@ -55,32 +56,58 @@ export class Embeddable<
   protected output: O;
   protected input: I;
   private panelContainer?: Element;
+  private parentChangesUnsubscribe?: () => void;
+  private destoyed: boolean = false;
 
-  constructor(type: string, input: I, output: O) {
+  constructor(type: string, input: I, output: O, parent?: Container) {
     this.type = type;
     this.id = input.id;
     this.output = output;
     this.input = input;
-  }
+    this.parent = parent;
 
-  public setContainer(container: Container) {
-    this.container = container;
-  }
-
-  public updateInput(changes: Partial<I>): void {
-    const newInput = {
-      ...this.input,
-      ...changes,
-    };
-    if (!isEqual(this.input, newInput)) {
-      this.input = newInput;
-      this.debug();
-      this.emitInputChanged(changes);
+    if (parent) {
+      this.parentChangesUnsubscribe = parent.subscribeToChanges(() => {
+        const newInput = parent.getInputForEmbeddable<I>(this.id);
+        this.onParentInputChanged(newInput);
+      });
     }
   }
 
-  public emitInputChanged(changes: Partial<I>) {
-    this.inputChangeListeners.forEach(listener => listener(changes));
+  public getTitle() {
+    return this.input.title;
+  }
+
+  private onParentInputChanged(newInput: I) {
+    if (!isEqual(this.input, newInput)) {
+      this.input = newInput;
+      this.emitInputChanged(newInput);
+    }
+  }
+
+  public updateInput(changes: Partial<I>): void {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
+    if (this.parent) {
+      // Ensures state changes flow from container downward.
+      this.parent.updateEmbeddableInput<I>(this.id, changes);
+    } else {
+      const newInput = {
+        ...this.input,
+        ...changes,
+      };
+      if (!isEqual(this.input, newInput)) {
+        this.input = newInput;
+        this.emitInputChanged(changes);
+      }
+    }
+  }
+
+  private emitInputChanged(changes: Partial<I>) {
+    [...this.inputChangeListeners].forEach(listener => {
+      listener(changes);
+    });
     this.anyChangeListeners.forEach(listener => listener({ input: changes }));
   }
 
@@ -97,6 +124,9 @@ export class Embeddable<
   }
 
   public subscribeToInputChanges(listener: (input: Partial<I>) => void) {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
     this.inputChangeListeners.push(listener);
     const unsubscribe = () => {
       this.inputChangeListeners.splice(this.inputChangeListeners.indexOf(listener), 1);
@@ -105,6 +135,9 @@ export class Embeddable<
   }
 
   public subscribeToOutputChanges(listener: (output: Partial<O>) => void) {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
     this.outputChangeListeners.push(listener);
     const unsubscribe = () => {
       this.outputChangeListeners.splice(this.outputChangeListeners.indexOf(listener), 1);
@@ -113,6 +146,9 @@ export class Embeddable<
   }
 
   public subscribeToChanges(listener: () => void) {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
     this.anyChangeListeners.push(listener);
     const unsubscribe = () => {
       this.anyChangeListeners.splice(this.anyChangeListeners.indexOf(listener), 1);
@@ -125,6 +161,9 @@ export class Embeddable<
   }
 
   public renderInPanel(node: HTMLElement | Element, container?: Container) {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
     this.panelContainer = node;
 
     ReactDOM.render(
@@ -136,6 +175,9 @@ export class Embeddable<
   }
 
   public render(domNode: HTMLElement | ReactNode): void {
+    if (this.destoyed) {
+      throw new Error('Embeddable has been destroyed');
+    }
     return;
   }
 
@@ -149,8 +191,12 @@ export class Embeddable<
   }
 
   public destroy(): void {
+    this.destoyed = true;
     if (this.panelContainer) {
       ReactDOM.unmountComponentAtNode(this.panelContainer);
+    }
+    if (this.parentChangesUnsubscribe) {
+      this.parentChangesUnsubscribe();
     }
     return;
   }
@@ -161,8 +207,9 @@ export class Embeddable<
   }
 
   protected emitOutputChanged(changes: Partial<O>) {
-    this.outputChangeListeners.forEach(listener => listener(changes));
-    this.anyChangeListeners.forEach(listener => listener({ output: changes }));
+    // Create copies to avoid issues if listeners are unsubscribed by nested changes propagatings.
+    [...this.outputChangeListeners].forEach(listener => listener(changes));
+    [...this.anyChangeListeners].forEach(listener => listener({ output: changes }));
   }
 
   protected updateOutput(outputChanges: Partial<O>): void {

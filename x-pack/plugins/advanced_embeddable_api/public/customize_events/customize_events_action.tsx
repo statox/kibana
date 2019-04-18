@@ -29,10 +29,6 @@ export class CustomizeEventsAction extends Action {
     return 'Customize events';
   }
 
-  public isSingleton() {
-    return true;
-  }
-
   public isCompatible(context: ActionContext) {
     return Promise.resolve(context.embeddable.getInput().viewMode === ViewMode.EDIT);
   }

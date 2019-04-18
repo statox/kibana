@@ -21,20 +21,18 @@ import { EuiContextMenuPanelDescriptor, EuiPanel } from '@elastic/eui';
 import classNames from 'classnames';
 import React from 'react';
 import {
-  Action,
-  buildEuiContextMenuPanels,
-  Container,
   ContextMenuAction,
   ContextMenuPanel,
-  Embeddable,
-  getActionsForTrigger,
-  CONTEXT_MENU_TRIGGER,
-  ViewMode,
-} from '..';
+  buildEuiContextMenuPanels,
+} from '../context_menu_actions';
+
+import { Action, Container, Embeddable, CONTEXT_MENU_TRIGGER, ViewMode } from '..';
+
 import { getEditPanelAction, getInspectorPanelAction } from './panel_header/panel_actions';
 import { AddPanelAction } from './panel_header/panel_actions/add_panel/add_panel_action';
 import { CustomizePanelTitleAction } from './panel_header/panel_actions/customize_title/customize_panel_action';
 import { PanelHeader } from './panel_header/panel_header';
+import { actionRegistry } from '../actions';
 
 interface Props {
   embeddable: Embeddable;
@@ -128,7 +126,7 @@ export class EmbeddablePanel extends React.Component<Props, State> {
   private getPanels = async () => {
     let panels: EuiContextMenuPanelDescriptor[] = [];
 
-    const actions = await getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
+    const actions = await actionRegistry.getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
       embeddable: this.props.embeddable,
       container: this.props.container,
     });

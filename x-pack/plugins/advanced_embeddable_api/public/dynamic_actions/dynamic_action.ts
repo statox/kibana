@@ -5,7 +5,11 @@
  */
 
 import uuid from 'uuid';
-import { ActionSavedObject, ActionSavedObjectAttributes } from './action_saved_object';
+import {
+  ActionSavedObject,
+  ActionSavedObjectAttributes,
+  SerializedDynamicAction,
+} from './action_saved_object';
 
 import { flatten } from './flatten';
 import {
@@ -30,6 +34,7 @@ export interface ActionContext<E extends Embeddable = Embeddable, C extends Cont
 }
 
 export abstract class DynamicAction extends Action {
+  public triggerId?: string;
   // If specified, this action is compatible with only the given instance id.
   public embeddableId: string = '';
 
@@ -50,24 +55,20 @@ export abstract class DynamicAction extends Action {
     actionSavedObject,
   }: {
     type: string;
-    actionSavedObject?: ActionSavedObject;
+    actionSavedObject?: SerializedDynamicAction;
   }) {
     super(actionSavedObject ? actionSavedObject.id : uuid.v4());
-    this.title = actionSavedObject ? actionSavedObject.attributes.title : 'New action';
-    this.type =
-      actionSavedObject && actionSavedObject.attributes.type
-        ? actionSavedObject.attributes.type
-        : type;
+    this.title = actionSavedObject ? actionSavedObject.title : 'New action';
+    this.type = actionSavedObject && actionSavedObject.type ? actionSavedObject.type : type;
     if (actionSavedObject) {
-      this.embeddableId = actionSavedObject.attributes.embeddableId;
-      this.embeddableType = actionSavedObject.attributes.embeddableType;
+      this.triggerId = actionSavedObject.triggerId;
+      this.embeddableId = actionSavedObject.embeddableId;
+      this.embeddableType = actionSavedObject.embeddableType;
       if (
-        actionSavedObject.attributes.embeddableTemplateMapping &&
-        actionSavedObject.attributes.embeddableTemplateMapping !== ''
+        actionSavedObject.embeddableTemplateMapping &&
+        actionSavedObject.embeddableTemplateMapping !== ''
       ) {
-        this.embeddableTemplateMapping = JSON.parse(
-          actionSavedObject.attributes.embeddableTemplateMapping
-        );
+        this.embeddableTemplateMapping = JSON.parse(actionSavedObject.embeddableTemplateMapping);
       }
     }
   }
@@ -104,7 +105,7 @@ export abstract class DynamicAction extends Action {
     return true;
   }
 
-  public getSavedObjectAttributes(): ActionSavedObjectAttributes {
+  public serialized(): SerializedDynamicAction {
     return {
       title: this.title,
       embeddableType: this.embeddableType,
@@ -113,6 +114,8 @@ export abstract class DynamicAction extends Action {
       description: this.description,
       configuration: this.getConfiguration(),
       embeddableTemplateMapping: this.mappingToString(),
+      id: this.id,
+      triggerId: this.triggerId,
     };
   }
 

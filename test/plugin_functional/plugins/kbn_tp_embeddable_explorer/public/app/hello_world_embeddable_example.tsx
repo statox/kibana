@@ -30,7 +30,7 @@ export class HelloWorldEmbeddableExample extends React.Component<{}> {
 
   public async componentDidMount() {
     if (this.embeddableRoot.current) {
-      this.embeddable = new HelloWorldEmbeddable({});
+      this.embeddable = new HelloWorldEmbeddable({ id: 'hello' });
       this.embeddable.renderInPanel(this.embeddableRoot.current);
     }
   }

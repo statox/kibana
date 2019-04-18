@@ -28,7 +28,7 @@ export async function addAction(action: DynamicAction): Promise<DynamicAction> {
     );
   }
 
-  const savedAction = await fromSavedObject(actionSavedObject);
+  const savedAction = await create(actionSavedObject);
 
   actionRegistry.addAction(savedAction);
 

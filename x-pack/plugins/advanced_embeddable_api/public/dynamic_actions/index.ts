@@ -7,10 +7,8 @@
 export { DynamicAction } from './dynamic_action';
 export { deleteAction } from './delete_action';
 export { isDynamicAction } from './is_action';
-export { getActions } from './get_actions';
 export { getAction } from './get_action';
 export { addAction } from './add_action';
-export { ActionSavedObject, ActionSavedObjectAttributes } from './action_saved_object';
 export { ActionFactory } from './action_factory';
 export { actionFactoryRegistry } from './action_factory_registry';
 export {

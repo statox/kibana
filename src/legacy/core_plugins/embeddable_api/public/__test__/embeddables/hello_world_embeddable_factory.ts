@@ -18,6 +18,7 @@
  */
 
 import { embeddableFactories, EmbeddableFactory } from 'plugins/embeddable_api/index';
+import { Container } from 'plugins/embeddable_api/containers';
 import { HelloWorldEmbeddable, HelloWorldInput } from './hello_world_embeddable';
 
 export const HELLO_WORLD_EMBEDDABLE = 'hello_world';
@@ -33,8 +34,8 @@ export class HelloWorldEmbeddableFactory extends EmbeddableFactory<HelloWorldInp
     return {};
   }
 
-  public create(initialInput: HelloWorldInput) {
-    return Promise.resolve(new HelloWorldEmbeddable(initialInput));
+  public create(initialInput: HelloWorldInput, parent?: Container) {
+    return Promise.resolve(new HelloWorldEmbeddable(initialInput, parent));
   }
 }
 

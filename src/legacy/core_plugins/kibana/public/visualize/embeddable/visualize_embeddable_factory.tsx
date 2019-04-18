@@ -50,6 +50,8 @@ import {
   embeddableFactories,
   EmbeddableFactory,
   ErrorEmbeddable,
+  Container,
+  Embeddable,
 } from 'plugins/embeddable_api/index';
 import chrome from 'ui/chrome';
 import { getVisualizeLoader } from 'ui/visualize/loader';
@@ -70,6 +72,7 @@ export const VISUALIZE_EMBEDDABLE_TYPE = 'visualization';
 export class VisualizeEmbeddableFactory extends EmbeddableFactory<
   VisualizeInput,
   VisualizeOutput,
+  Embeddable<VisualizeInput, VisualizeOutput>,
   VisualizationAttributes
 > {
   private visTypes?: VisTypesRegistry;
@@ -111,6 +114,10 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
       },
     });
     this.initializeVisTypes();
+  }
+
+  public isEditable() {
+    return uiCapabilities.visualize.save as boolean;
   }
 
   public async initializeVisTypes() {
@@ -161,13 +168,12 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
     };
   }
 
-  public async create(initialInput: VisualizeInput) {
-    const $injector = await chrome.dangerouslyGetActiveInjector();
-    const config = $injector.get<Legacy.KibanaConfig>('config');
-    const savedVisualizations = $injector.get<SavedVisualizations>('savedVisualizations');
-
-    if (!initialInput.savedObjectId && this.visTypes) {
-      return new Promise<VisualizeEmbeddable | ErrorEmbeddable>(async resolve => {
+  private promptToCreateNew(
+    savedVisualizations: SavedVisualizations,
+    input: Partial<VisualizeInput> & { id: string }
+  ) {
+    return new Promise<DisabledLabEmbeddable | VisualizeEmbeddable | ErrorEmbeddable>(
+      async resolve => {
         const onCreateNew = async (options: {
           visType: string;
           searchId?: string;
@@ -205,7 +211,7 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
               onTitleDuplicate,
             };
             const id = await savedVis.save(saveOptions);
-            const newVis = await this.create({ ...initialInput, savedObjectId: id });
+            const newVis = await this.createFromSavedObject(id, input);
             resolve(newVis);
             return newVis;
           };
@@ -225,13 +231,13 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
 
         if (!this.visTypes) {
           resolve(
-            new ErrorEmbeddable({
-              id: initialInput.id,
-              errorMessage: i18n.translate('kbn.visualizeEmbeddable.noSavedObjectIdErrorMessage', {
+            new ErrorEmbeddable(
+              i18n.translate('kbn.visualizeEmbeddable.noSavedObjectIdErrorMessage', {
                 defaultMessage:
                   'No saved object id given, re-directing you to create a new visualization',
               }),
-            })
+              input.id
+            )
           );
         } else {
           showNewVisModal(this.visTypes, {
@@ -239,11 +245,21 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
             //  onCreate: onCreateNew
           });
         }
-      });
-    }
+      }
+    );
+  }
+
+  public async createFromSavedObject(
+    savedObjectId: string,
+    input: Partial<VisualizeInput> & { id: string },
+    parent?: Container
+  ): Promise<VisualizeEmbeddable | ErrorEmbeddable | DisabledLabEmbeddable> {
+    const $injector = await chrome.dangerouslyGetActiveInjector();
+    const config = $injector.get<Legacy.KibanaConfig>('config');
+    const savedVisualizations = $injector.get<SavedVisualizations>('savedVisualizations');
 
     try {
-      const visId = initialInput.savedObjectId;
+      const visId = savedObjectId;
 
       const editUrl = chrome.addBasePath(`/app/kibana${savedVisualizations.urlFor(visId)}`);
       const loader = await getVisualizeLoader();
@@ -251,7 +267,7 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
       const isLabsEnabled = config.get<boolean>('visualize:enableLabs');
 
       if (!isLabsEnabled && savedObject.vis.type.stage === 'experimental') {
-        return new DisabledLabEmbeddable(savedObject.title, initialInput);
+        return new DisabledLabEmbeddable(savedObject.title, input);
       }
 
       const indexPattern = await getIndexPattern(savedObject);
@@ -264,17 +280,21 @@ export class VisualizeEmbeddableFactory extends EmbeddableFactory<
           indexPatterns,
         },
         {
-          ...initialInput,
-          editable: uiCapabilities.visualize.save as boolean,
-        }
+          ...input,
+          editable: this.isEditable(),
+        },
+        parent
       );
     } catch (e) {
       console.error(e); // eslint-disable-line no-console
-      return new ErrorEmbeddable({
-        ...initialInput,
-        errorMessage: 'Hit a failure: ' + JSON.stringify(e),
-      });
+      return new ErrorEmbeddable(e, input.id);
     }
+  }
+
+  public async create(input: VisualizeInput) {
+    const $injector = await chrome.dangerouslyGetActiveInjector();
+    const savedVisualizations = $injector.get<SavedVisualizations>('savedVisualizations');
+    return this.promptToCreateNew(savedVisualizations, input);
   }
 }
 

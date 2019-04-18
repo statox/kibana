@@ -21,6 +21,7 @@ import { SavedObjectMetaData } from 'ui/saved_objects/components/saved_object_fi
 import { SavedObjectAttributes } from '../../../../server/saved_objects';
 import { Embeddable, EmbeddableInput, EmbeddableOutput } from './embeddable';
 import { ErrorEmbeddable } from './error_embeddable';
+import { Container } from '../containers';
 
 export interface EmbeddableInstanceConfiguration {
   id: string;
@@ -71,7 +72,25 @@ export abstract class EmbeddableFactory<
 
   public abstract getOutputSpec(): OutputSpec;
 
+  public isEditable() {
+    return true;
+  }
+
+  public getDefaultInputParameters(): Partial<I> {
+    return {};
+  }
+
   /**
    */
-  public abstract create(initialInput: I): Promise<E | ErrorEmbeddable>;
+  public createFromSavedObject(
+    savedObjectId: string,
+    partialInput: Partial<I>,
+    parent?: Container
+  ): Promise<E | ErrorEmbeddable> {
+    throw new Error(`Creation from saved object not supported by type ${this.name}`);
+  }
+
+  /**
+   */
+  public abstract create(initialInput: I, parent?: Container): Promise<E | ErrorEmbeddable>;
 }

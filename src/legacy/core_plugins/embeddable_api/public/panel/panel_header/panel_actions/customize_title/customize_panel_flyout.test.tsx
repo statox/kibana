@@ -33,37 +33,52 @@ jest.mock('ui/capabilities', () => ({
 }));
 
 import React from 'react';
-import { HELLO_WORLD_EMBEDDABLE, HelloWorldEmbeddableFactory } from '../../../../__test__/index';
+import {
+  HELLO_WORLD_EMBEDDABLE,
+  HelloWorldEmbeddableFactory,
+  HelloWorldContainer,
+  HelloWorldEmbeddable,
+  HelloWorldInput,
+} from '../../../../__test__/index';
 
-import { AddPanelFlyout } from './add_panel_flyout';
+import { CustomizePanelFlyout } from './customize_panel_flyout';
 import { Container } from 'plugins/embeddable_api/containers';
-import { EmbeddableFactoryRegistry } from 'plugins/embeddable_api/embeddables';
+import { EmbeddableFactoryRegistry, isErrorEmbeddable } from 'plugins/embeddable_api/embeddables';
 // @ts-ignore
 import { findTestSubject } from '@elastic/eui/lib/test';
 import { mountWithIntl } from 'test_utils/enzyme_helpers';
 
 const onClose = jest.fn();
 let container: Container;
+let embeddable: HelloWorldEmbeddable;
 
-beforeEach(() => {
+beforeEach(async () => {
   const embeddableFactories = new EmbeddableFactoryRegistry();
   embeddableFactories.registerFactory(new HelloWorldEmbeddableFactory());
-  container = new Container(
-    'test',
-    { id: '123', panels: {} },
-    { embeddableLoaded: {} },
-    embeddableFactories
+  container = new HelloWorldContainer({ id: '123', panels: {} }, embeddableFactories);
+  const helloEmbeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
+    HELLO_WORLD_EMBEDDABLE,
+    {
+      firstName: 'Joe',
+    }
   );
+  if (isErrorEmbeddable(helloEmbeddable)) {
+    throw new Error('Error creating new hello world embeddable');
+  } else {
+    embeddable = helloEmbeddable;
+  }
 });
 
 test('matches snapshot', async () => {
-  const component = mountWithIntl(<AddPanelFlyout container={container} onClose={onClose} />);
+  const component = mountWithIntl(<CustomizePanelFlyout container={container} onClose={onClose} />);
 
   expect(component).toMatchSnapshot();
 });
 
-test('adds a panel to the container', async done => {
-  const component = mountWithIntl(<AddPanelFlyout container={container} onClose={onClose} />);
+test('changes the new title with container', async done => {
+  const component = mountWithIntl(
+    <CustomizePanelFlyout container={container} embeddable={embeddable} onClose={onClose} />
+  );
 
   expect(Object.values(container.getInput().panels).length).toBe(0);
 

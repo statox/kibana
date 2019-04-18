@@ -78,8 +78,8 @@ export class AddPanelFlyout extends React.Component<Props> {
 
   public createNewEmbeddable = async (type: string) => {
     this.props.onClose();
-    const embeddable = await this.props.container.addNewEmbeddable(type);
-    this.showToast(embeddable.getOutput().title || '');
+    const embeddable = await this.props.container.addNewEmbeddable(type, {});
+    this.showToast(embeddable.getInput().title || '');
 
     // This redirect is to preserve existing visualization editing flow. In the future, we would
     // ideally jump into edit mode while staying in the current location in the container.
@@ -90,7 +90,7 @@ export class AddPanelFlyout extends React.Component<Props> {
   };
 
   public onAddPanel = async (id: string, type: string, name: string) => {
-    this.props.container.addNewEmbeddable(type, { savedObjectId: id });
+    this.props.container.addSavedObjectEmbeddable(type, id);
 
     this.showToast(name);
   };
@@ -121,23 +121,24 @@ export class AddPanelFlyout extends React.Component<Props> {
             })}
           />
         </EuiFlyoutBody>
-        {uiCapabilities.visualize.save ? (
-          <EuiFlyoutFooter>
-            <EuiFlexGroup justifyContent="flexEnd">
-              <EuiFlexItem grow={true}>
-                <EuiSuperSelect
-                  data-test-subj="createNew"
-                  options={[
-                    {
-                      inputDisplay: i18n.translate(
-                        'kbn.embeddables.addPanel.createNewDefaultOption',
-                        {
-                          defaultMessage: 'Create new ...',
-                        }
-                      ),
-                      value: '1',
-                    },
-                    ...Object.values(embeddableFactories.getFactories()).map(factory => ({
+        <EuiFlyoutFooter>
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={true}>
+              <EuiSuperSelect
+                data-test-subj="createNew"
+                options={[
+                  {
+                    inputDisplay: i18n.translate(
+                      'kbn.embeddables.addPanel.createNewDefaultOption',
+                      {
+                        defaultMessage: 'Create new ...',
+                      }
+                    ),
+                    value: '1',
+                  },
+                  ...Object.values(embeddableFactories.getFactories())
+                    .filter(factory => factory.isEditable())
+                    .map(factory => ({
                       inputDisplay: i18n.translate('kbn.embeddables.addPanel.createNew', {
                         defaultMessage: 'Create new {factoryName}',
                         values: {
@@ -147,14 +148,13 @@ export class AddPanelFlyout extends React.Component<Props> {
                       value: factory.name,
                       'data-test-subj': `createNew-${factory.name}`,
                     })),
-                  ]}
-                  value="1"
-                  onChange={(value: string) => this.createNewEmbeddable(value)}
-                />
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </EuiFlyoutFooter>
-        ) : null}
+                ]}
+                value="1"
+                onChange={(value: string) => this.createNewEmbeddable(value)}
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </EuiFlyoutFooter>
       </EuiFlyout>
     );
   }

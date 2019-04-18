@@ -24,10 +24,10 @@ import uuid from 'uuid';
 import { I18nProvider } from '@kbn/i18n/react';
 import { IndexPattern } from 'ui/index_patterns';
 
+import { TimeRange } from 'ui/timefilter/time_history';
 import {
   Container,
   ContainerInput,
-  ContainerOutput,
   Embeddable,
   EmbeddableFactoryRegistry,
   EmbeddableInput,
@@ -36,10 +36,11 @@ import {
   RefreshConfig,
   ViewMode,
   EmbeddableOutput,
-} from 'plugins/embeddable_api/index';
-import { TimeRange } from 'ui/timefilter/time_history';
+  EmbeddableInputMissingFromContainer,
+  isErrorEmbeddable,
+  EmbeddableFactory,
+} from '../../../embeddable_api/public/index';
 
-import { EmbeddableInputMissingFromContainer } from 'plugins/embeddable_api/containers/container';
 import { DASHBOARD_CONTAINER_TYPE } from './dashboard_container_factory';
 import { createPanelState } from './panel';
 import { DashboardPanelState } from './types';
@@ -64,14 +65,11 @@ export interface DashboardContainerInput extends ContainerInput {
 }
 
 export interface DashboardEmbeddableInput extends EmbeddableInput {
-  // customization: any;
   filters: Filter[];
-  isPanelExpanded: boolean;
   query: Query;
   timeRange: TimeRange;
   refreshConfig?: RefreshConfig;
   viewMode: ViewMode;
-  savedObjectId?: string;
   hidePanelTitles?: boolean;
 }
 
@@ -88,24 +86,30 @@ export class DashboardContainer extends Container<
 > {
   constructor(
     initialInput: DashboardContainerInput,
-    embeddableFactories: EmbeddableFactoryRegistry
+    embeddableFactories: EmbeddableFactoryRegistry,
+    parent?: Container
   ) {
-    super(DASHBOARD_CONTAINER_TYPE, initialInput, { embeddableLoaded: {} }, embeddableFactories);
+    super(
+      DASHBOARD_CONTAINER_TYPE,
+      {
+        panels: {},
+        isFullScreenMode: false,
+        filters: [],
+        useMargins: true,
+        ...initialInput,
+      },
+      { embeddableLoaded: {} },
+      embeddableFactories,
+      parent
+    );
   }
 
-  public createNewPanelState<EEI extends EmbeddableInput = EmbeddableInput>({
-    type,
-    initialInput,
-  }: {
-    type: string;
-    initialInput: EmbeddableInputMissingFromContainer<EEI, DashboardEmbeddableInput> & {
-      id?: string;
-    };
-  }): DashboardPanelState<EmbeddableInputMissingFromContainer<EEI, DashboardEmbeddableInput>> {
-    const embeddableId = initialInput.id || uuid.v4();
+  protected createNewPanelState<EEI extends EmbeddableInput = EmbeddableInput>(
+    factory: EmbeddableFactory<EEI>
+  ): DashboardPanelState<EmbeddableInputMissingFromContainer<EEI, DashboardEmbeddableInput>> {
+    const panelState = super.createNewPanelState(factory);
     return createPanelState<EmbeddableInputMissingFromContainer<EEI, DashboardEmbeddableInput>>(
-      { ...initialInput, id: embeddableId },
-      type,
+      panelState,
       Object.values(this.input.panels)
     );
   }
@@ -144,28 +148,26 @@ export class DashboardContainer extends Container<
   public getPanelIndexPatterns() {
     const indexPatterns: IndexPattern[] = [];
     Object.values(this.embeddables).forEach(embeddable => {
-      const embeddableIndexPatterns = embeddable.getOutput().indexPatterns;
-      if (embeddableIndexPatterns) {
-        indexPatterns.push(...embeddableIndexPatterns);
+      if (!isErrorEmbeddable(embeddable)) {
+        const embeddableIndexPatterns = embeddable.getOutput().indexPatterns;
+        if (embeddableIndexPatterns) {
+          indexPatterns.push(...embeddableIndexPatterns);
+        }
       }
     });
     return indexPatterns;
   }
 
-  public getInputForEmbeddableFromContainer(id: string): DashboardEmbeddableInput {
-    const panelState = this.getPanelState(id);
-    const isPanelExpanded = this.input.expandedPanelId === panelState.embeddableId;
+  protected getInheritedInput(id: string): DashboardEmbeddableInput {
     const { viewMode, refreshConfig, timeRange, query, hidePanelTitles, filters } = this.input;
     return {
       filters,
       hidePanelTitles,
-      isPanelExpanded,
       query,
       timeRange,
       refreshConfig,
       viewMode,
-      id: panelState.embeddableId,
-      customization: panelState.customization,
+      id,
     };
   }
 }

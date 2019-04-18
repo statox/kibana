@@ -13,6 +13,7 @@ import ReactDOM from 'react-dom';
 import {} from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 import { ApplyTimeRangeAction } from './apply_time_range';
 import { ActionFactory, ActionSavedObject } from '../dynamic_actions';
+import { SerializedDynamicAction } from '../dynamic_actions/action_saved_object';
 export const APPLY_TIME_RANGE = 'APPLY_TIME_RANGE';
 
 export class ApplyTimeRangeActionFactory extends ActionFactory {
@@ -29,8 +30,8 @@ export class ApplyTimeRangeActionFactory extends ActionFactory {
     ReactDOM.render(<div />, domNode);
   }
 
-  public fromSavedObject(actionSavedObject: ActionSavedObject) {
-    return new ApplyTimeRangeAction(actionSavedObject);
+  public create(serializedAction: SerializedDynamicAction) {
+    return new ApplyTimeRangeAction(serializedAction);
   }
 
   public createNew() {

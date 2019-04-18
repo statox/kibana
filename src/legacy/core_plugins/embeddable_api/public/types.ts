@@ -39,15 +39,14 @@ export interface TimeRange {
 }
 
 export interface RefreshConfig {
-  isPaused: boolean;
-  interval: number;
+  pause: boolean;
+  value: number;
 }
 
 export interface FilterMeta {
   disabled: boolean;
 }
 
-// TODO: Filter object representation needs to be fleshed out.
 export interface Filter {
   meta: FilterMeta;
   query: object;

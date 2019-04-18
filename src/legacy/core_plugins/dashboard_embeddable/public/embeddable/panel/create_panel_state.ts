@@ -19,8 +19,7 @@
 
 import _ from 'lodash';
 
-import uuid from 'uuid';
-import { EmbeddableInput } from 'plugins/embeddable_api/index';
+import { PanelState } from 'plugins/embeddable_api/index';
 import {
   DASHBOARD_GRID_COLUMN_COUNT,
   DEFAULT_PANEL_HEIGHT,
@@ -104,8 +103,7 @@ function findTopLeftMostOpenSpace(
  * Creates and initializes a basic panel state.
  */
 export function createPanelState<PartialEmbeddableInput>(
-  initialInput: PartialEmbeddableInput & { id: string },
-  type: string,
+  panelState: PanelState<PartialEmbeddableInput>,
   currentPanels: DashboardPanelState[]
 ): DashboardPanelState<PartialEmbeddableInput> {
   const { x, y } = findTopLeftMostOpenSpace(
@@ -113,17 +111,14 @@ export function createPanelState<PartialEmbeddableInput>(
     DEFAULT_PANEL_HEIGHT,
     currentPanels
   );
-  const embeddableId = initialInput.id || uuid.v4();
   return {
     gridData: {
       w: DEFAULT_PANEL_WIDTH,
       h: DEFAULT_PANEL_HEIGHT,
       x,
       y,
-      i: embeddableId,
+      i: panelState.embeddableId,
     },
-    type,
-    initialInput,
-    embeddableId,
+    ...panelState,
   };
 }

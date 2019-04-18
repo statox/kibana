@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { PanelState, EmbeddableInput } from 'plugins/embeddable_api/index';
+import { PanelState } from '../../../embeddable_api/public/index';
 export type PanelId = string;
 export type SavedObjectId = string;
 

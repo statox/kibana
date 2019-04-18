@@ -9,13 +9,13 @@ import { getNewPlatform } from 'ui/new_platform';
 import { FlyoutRef } from '../../../../../src/core/public';
 import {
   Action,
-  ActionSavedObject,
-  ExecuteOptions,
   ActionContext,
   ViewMode,
+  ExecuteActionContext,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
-import { ADD_NAVIGATE_ACTION } from './add_navigate_action_factory';
 import { AddNavigateActionFlyout } from './add_navigate_action_flyout';
+
+export const ADD_NAVIGATE_ACTION = 'ADD_NAVIGATE_ACTION';
 
 export class AddNavigateAction extends Action {
   private flyoutSession?: FlyoutRef;
@@ -32,7 +32,7 @@ export class AddNavigateAction extends Action {
     return Promise.resolve(context.embeddable.getInput().viewMode === ViewMode.EDIT);
   }
 
-  public execute({ embeddable, container }: ExecuteOptions) {
+  public execute({ embeddable, container }: ExecuteActionContext) {
     if (!embeddable) {
       throw new Error('Navigate action requires an embeddable context to be executed');
     }

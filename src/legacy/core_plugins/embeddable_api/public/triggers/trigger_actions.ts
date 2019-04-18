@@ -26,41 +26,6 @@ import {
 } from '../context_menu_actions';
 import { Embeddable } from '../embeddables';
 
-import { triggerRegistry } from './trigger_registry';
-
-function isAction(action: Action | { message: string; statusCode?: number }): action is Action {
-  return (action as Action).id !== undefined;
-}
-
-export async function getActionsForTrigger(
-  triggerId: string,
-  context?: {
-    embeddable: Embeddable;
-    container?: Container;
-  }
-) {
-  const trigger = triggerRegistry.getTrigger(triggerId);
-
-  if (!trigger) {
-    throw new Error(`Trigger with id ${triggerId} does not exist`);
-  }
-
-  const actions: Action[] = [];
-  const promises = trigger.actionIds.map(async id => {
-    const action = actionRegistry.getAction(id);
-    if (!action) {
-      throw new Error(`Action ${id} does not exist`);
-    }
-    if (!context || (await action.isCompatible(context))) {
-      actions.push(action);
-    }
-  });
-
-  await Promise.all(promises);
-
-  return actions;
-}
-
 export async function executeTriggerActions(
   triggerId: string,
   {
@@ -73,7 +38,7 @@ export async function executeTriggerActions(
     triggerContext: any;
   }
 ) {
-  const actions = await getActionsForTrigger(triggerId, { embeddable, container });
+  const actions = await actionRegistry.getActionsForTrigger(triggerId, { embeddable, container });
   if (actions.length > 1) {
     const contextMenuPanel = new ContextMenuPanel({
       title: 'Actions',
@@ -83,29 +48,27 @@ export async function executeTriggerActions(
     const closeMyContextMenuPanel = () => {
       session.close();
     };
-    const wrappedForContextMenu: ContextMenuAction[] = [];
+    const contextMenuActions: ContextMenuAction[] = [];
     actions.forEach((action: Action) => {
-      if (action.id) {
-        wrappedForContextMenu.push(
-          new ContextMenuAction(
-            {
-              id: action.id,
-              displayName: action.getTitle({ embeddable, container }),
-              parentPanelId: 'mainMenu',
+      contextMenuActions.push(
+        new ContextMenuAction(
+          {
+            id: action.id,
+            displayName: action.getTitle({ embeddable, container }),
+            parentPanelId: 'mainMenu',
+          },
+          {
+            onClick: () => {
+              action.execute({ embeddable, container, triggerContext });
+              closeMyContextMenuPanel();
             },
-            {
-              onClick: () => {
-                action.execute({ embeddable, container, triggerContext });
-                closeMyContextMenuPanel();
-              },
-            }
-          )
-        );
-      }
+          }
+        )
+      );
     });
     const panels = buildEuiContextMenuPanels({
       contextMenuPanel,
-      actions: wrappedForContextMenu,
+      actions: contextMenuActions,
       embeddable,
       container,
     });

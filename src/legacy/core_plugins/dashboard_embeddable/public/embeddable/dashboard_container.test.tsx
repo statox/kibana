@@ -57,7 +57,7 @@ test('DashboardContainer initializes embeddables', async done => {
       panels: {
         '123': getSampleDashboardPanel({
           embeddableId: '123',
-          initialInput: { firstName: 'Sam' },
+          partialInput: { firstName: 'Sam' },
           type: HELLO_WORLD_EMBEDDABLE,
         }),
       },

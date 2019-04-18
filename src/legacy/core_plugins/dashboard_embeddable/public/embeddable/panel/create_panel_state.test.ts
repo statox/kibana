@@ -29,12 +29,10 @@ interface TestInput extends DashboardEmbeddableInput {
 function getSampleDashboardEmbeddableInput(): DashboardEmbeddableInput {
   return {
     filters: [],
-    customization: {},
     query: {
       language: QueryLanguageType.KUERY,
       query: 'hi',
     },
-    isPanelExpanded: false,
     timeRange: {
       to: 'now',
       from: 'now-15m',
@@ -51,7 +49,7 @@ test('createPanelState adds a new panel state in 0,0 position', () => {
     'bye',
     []
   );
-  expect(panelState.initialInput.test).toBe('hi');
+  expect(panelState.partialInput.test).toBe('hi');
   expect(panelState.type).toBe('bye');
   expect(panelState.embeddableId).toBeDefined();
   expect(panelState.gridData.x).toBe(0);

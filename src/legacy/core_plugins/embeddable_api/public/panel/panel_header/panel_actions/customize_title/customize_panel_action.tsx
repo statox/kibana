@@ -20,15 +20,26 @@
 import { EuiIcon } from '@elastic/eui';
 import { ViewMode } from 'plugins/embeddable_api/types';
 import React from 'react';
-import { getNewPlatform } from 'ui/new_platform';
 import { i18n } from '@kbn/i18n';
+import { ExecuteActionContext } from 'plugins/embeddable_api/actions';
 import { Action, Container, Embeddable } from '../../../../';
-import { CustomizePanelFlyout } from './customize_panel_flyout';
+import { getUserData } from './get_user_data';
 
 const CUSTOMIZE_PANEL_ACTION_ID = 'CUSTOMIZE_PANEL_ACTION_ID';
 
-export class CustomizePanelTitleAction extends Action {
-  constructor() {
+export class CustomizePanelTitleAction extends Action<
+  Embeddable,
+  Container,
+  {},
+  {
+    title: string | undefined;
+  }
+> {
+  constructor(
+    protected getDataFromUser: (
+      context: ExecuteActionContext
+    ) => Promise<{ title: string | undefined }> = getUserData
+  ) {
     super(CUSTOMIZE_PANEL_ACTION_ID);
     this.priority = 8;
   }
@@ -55,44 +66,14 @@ export class CustomizePanelTitleAction extends Action {
     );
   }
 
-  public execute({ embeddable, container }: { embeddable: Embeddable; container: Container }) {
+  public async execute({ embeddable, container }: ExecuteActionContext) {
     if (!embeddable || !container) {
       throw new Error(
         'Customize panel title action requires an embeddable and container as context.'
       );
     }
-    getNewPlatform().setup.core.overlays.openFlyout(
-      <CustomizePanelFlyout
-        container={container}
-        embeddable={embeddable}
-        onReset={() => this.onReset({ embeddable, container })}
-        onUpdatePanelTitle={title => this.onSetTitle({ embeddable, container }, title)}
-      />,
-      {
-        'data-test-subj': 'samplePanelActionFlyout',
-      }
-    );
-  }
 
-  private onReset(panelAPI: { embeddable: Embeddable; container: Container }) {
-    this.onSetTitle(panelAPI);
-  }
-
-  private onSetTitle({ embeddable }: { embeddable: Embeddable }, title?: string) {
-    embeddable.updateInput({ title });
-    // const currentContainerState = container.getOutput();
-    // const embeddableState = currentContainerState.panels[embeddable.id];
-    // container.setInput({
-    //   panels: {
-    //     ...currentContainerState.panels,
-    //     [embeddable.id]: {
-    //       ...embeddableState,
-    //       customization: {
-    //         ...embeddableState.customization,
-    //         title,
-    //       },
-    //     },
-    //   },
-    // });
+    const customTitle = await this.getDataFromUser({ embeddable, container });
+    embeddable.updateInput(customTitle);
   }
 }

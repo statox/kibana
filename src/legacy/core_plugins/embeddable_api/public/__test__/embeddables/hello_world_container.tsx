@@ -32,10 +32,9 @@ export class HelloWorldContainer extends Container {
     super(LIST_CONTAINER_ID, input, { embeddableLoaded: { myid: false } }, embeddableFactories);
   }
 
-  public getInputForEmbeddableFromContainer(id: string) {
+  public getInheritedInput(id: string) {
     return {
       id,
-      customization: this.input.panels[id].customization || {},
       viewMode: this.input.viewMode || ViewMode.EDIT,
     };
   }

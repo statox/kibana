@@ -119,7 +119,7 @@ exports[`DashboardPanel renders an embeddable when it is done loading 1`] = `
               "x": 0,
               "y": 0,
             },
-            "initialInput": Object {},
+            "partialInput": Object {},
             "type": "hello_world",
           },
         },

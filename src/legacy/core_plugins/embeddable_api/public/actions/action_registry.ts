@@ -20,6 +20,7 @@
 import { Action } from './action';
 import { Embeddable } from '../embeddables';
 import { Container } from '../containers';
+import { triggerRegistry } from '../triggers';
 
 class ActionRegistry {
   private actions: { [key: string]: Action } = {};
@@ -42,6 +43,32 @@ class ActionRegistry {
 
   public getActions() {
     return this.actions;
+  }
+
+  public async getActionsForTrigger(
+    triggerId: string,
+    context: { embeddable: Embeddable; container?: Container }
+  ) {
+    const trigger = triggerRegistry.getTrigger(triggerId);
+
+    if (!trigger) {
+      throw new Error(`Trigger with id ${triggerId} does not exist`);
+    }
+
+    const actions: Action[] = [];
+    const promises = trigger.actionIds.map(async id => {
+      const action = actionRegistry.getAction(id);
+      if (!action) {
+        throw new Error(`Action ${id} does not exist`);
+      }
+      if (!context || (await action.isCompatible(context))) {
+        actions.push(action);
+      }
+    });
+
+    await Promise.all(promises);
+
+    return actions;
   }
 }
 

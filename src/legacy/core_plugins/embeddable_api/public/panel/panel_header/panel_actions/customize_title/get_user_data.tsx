@@ -16,7 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import React from 'react';
+import { getNewPlatform } from 'ui/new_platform';
+import { ExecuteActionContext } from 'plugins/embeddable_api/actions';
+import { CustomizePanelFlyout } from './customize_panel_flyout';
 
-export { SayHelloAction } from './say_hello_action';
-export { EditModeAction } from './edit_mode_action';
-export { ChangeViewModeAction } from './change_view_mode';
+export async function getUserData(context: ExecuteActionContext) {
+  return new Promise<{ title: string | undefined }>(resolve => {
+    getNewPlatform().setup.core.overlays.openFlyout(
+      <CustomizePanelFlyout
+        container={context.container}
+        embeddable={context.embeddable}
+        onReset={() => resolve({ title: undefined })}
+        onUpdatePanelTitle={title => resolve({ title })}
+      />,
+      {
+        'data-test-subj': 'samplePanelActionFlyout',
+      }
+    );
+  });
+}

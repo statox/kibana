@@ -22,6 +22,7 @@ import {
   embeddableFactories,
   EmbeddableFactory,
   ErrorEmbeddable,
+  Container,
 } from 'plugins/embeddable_api/index';
 import { DashboardContainer, DashboardContainerInput } from './dashboard_container';
 
@@ -43,6 +44,14 @@ export class DashboardContainerFactory extends EmbeddableFactory<
     return {};
   }
 
+  public getDefaultInputParameters(): Partial<DashboardContainerInput> {
+    return {
+      panels: {},
+      isFullScreenMode: false,
+      useMargins: true,
+    };
+  }
+
   /**
    *
    * @param panelMetadata. Currently just passing in panelState but it's more than we need, so we should
@@ -52,9 +61,10 @@ export class DashboardContainerFactory extends EmbeddableFactory<
    * @return
    */
   public async create(
-    initialInput: DashboardContainerInput
+    initialInput: DashboardContainerInput,
+    parent?: Container
   ): Promise<DashboardContainer | ErrorEmbeddable> {
-    return Promise.resolve(new DashboardContainer(initialInput, embeddableFactories));
+    return Promise.resolve(new DashboardContainer(initialInput, embeddableFactories, parent));
   }
 }
 

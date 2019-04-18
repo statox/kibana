@@ -57,7 +57,7 @@ export function getSampleDashboardPanel(
     },
     embeddableId: overrides.embeddableId,
     type: overrides.type,
-    initialInput: overrides.initialInput || {},
+    partialInput: overrides.partialInput || {},
     ...overrides,
   };
 }

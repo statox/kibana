@@ -22,6 +22,7 @@ import { ViewMode } from 'plugins/embeddable_api/types';
 import React from 'react';
 
 import { getNewPlatform } from 'ui/new_platform';
+import { i18n } from '@kbn/i18n';
 import { FlyoutRef } from '../../../../../../../../core/public';
 import { Action, Container, Embeddable } from '../../../../';
 import { AddPanelFlyout } from './add_panel_flyout';
@@ -31,22 +32,18 @@ export const ADD_PANEL_ACTION_ID = 'ADD_PANEL_ACTION_ID';
 export class AddPanelAction extends Action {
   private flyoutSession: FlyoutRef | undefined;
   constructor() {
-    super();
-    this.id = ADD_PANEL_ACTION_ID;
-    this.title = 'Add panel';
+    super(ADD_PANEL_ACTION_ID);
     this.priority = 8;
   }
 
-  public allowEditing() {
-    return false;
-  }
-
-  public isSingleton() {
-    return true;
+  public getTitle() {
+    return i18n.translate('kbn.embeddable.panel.addPanel.displayName', {
+      defaultMessage: 'Add panel',
+    });
   }
 
   public getIcon() {
-    return <EuiIcon type="pencil" />;
+    return <EuiIcon type="plusInCircleFilled" />;
   }
 
   public isCompatible({ embeddable }: { embeddable: Embeddable; container?: Container }) {

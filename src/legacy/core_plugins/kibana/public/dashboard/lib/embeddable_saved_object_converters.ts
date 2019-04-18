@@ -25,29 +25,30 @@ export function convertSavedDashboardPanelToPanelState(
   savedDashboardPanel: SavedDashboardPanel
 ): DashboardPanelState {
   return {
-    ...savedDashboardPanel,
+    type: savedDashboardPanel.type,
+    gridData: savedDashboardPanel.gridData,
     embeddableId: savedDashboardPanel.panelIndex,
-    customization: {
-      ...savedDashboardPanel.embeddableConfig,
+    savedObjectId: savedDashboardPanel.id,
+    partialInput: {
       title: savedDashboardPanel.title,
-    },
-    initialInput: {
-      savedObjectId: savedDashboardPanel.id,
+      ...savedDashboardPanel.embeddableConfig,
     },
   };
 }
 
 export function convertPanelStateToSavedDashboardPanel(
-  panelState: DashboardPanelState,
-  savedDashboardPanel?: SavedDashboardPanel
+  panelState: DashboardPanelState
 ): SavedDashboardPanel {
+  const customTitle: string | undefined = panelState.partialInput.title
+    ? (panelState.partialInput.title as string)
+    : undefined;
   return {
     version: chrome.getKibanaVersion(),
-    ...savedDashboardPanel,
-    ...panelState,
+    type: panelState.type,
+    gridData: panelState.gridData,
     panelIndex: panelState.embeddableId,
-    embeddableConfig: panelState.customization,
-    title: panelState.customization ? panelState.customization.title : undefined,
-    id: panelState.initialInput.savedObjectId || '',
+    embeddableConfig: panelState.partialInput,
+    ...(customTitle && { title: customTitle }),
+    id: panelState.savedObjectId,
   };
 }

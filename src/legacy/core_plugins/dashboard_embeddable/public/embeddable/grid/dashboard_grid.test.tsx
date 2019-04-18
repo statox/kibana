@@ -18,7 +18,7 @@
  */
 
 import React from 'react';
-import { shallowWithIntl } from 'test_utils/enzyme_helpers';
+import { shallowWithIntl, nextTick } from 'test_utils/enzyme_helpers';
 // @ts-ignore
 import sizeMe from 'react-sizeme';
 
@@ -56,23 +56,20 @@ function getProps(props?: Partial<DashboardGridProps>): DashboardGridProps {
           gridData: { x: 0, y: 0, w: 6, h: 6, i: '1' },
           embeddableId: '1',
           type: HELLO_WORLD_EMBEDDABLE,
-          initialInput: { firstName: 'Bob' },
+          partialInput: { firstName: 'Bob' },
         },
         '2': {
           gridData: { x: 6, y: 6, w: 6, h: 6, i: '2' },
           type: HELLO_WORLD_EMBEDDABLE,
           embeddableId: '2',
-          initialInput: { firstName: 'Stacey' },
+          partialInput: { firstName: 'Stacey' },
         },
       },
     }),
     embeddableFactories
   );
   const defaultTestProps: DashboardGridProps = {
-    dashboardViewMode: ViewMode.EDIT,
     embeddableFactories,
-    onPanelsUpdated: () => {},
-    useMargins: true,
     container: dashboardContainer,
     intl: null as any,
   };
@@ -92,7 +89,7 @@ afterAll(() => {
 test('renders DashboardGrid', () => {
   const component = shallowWithIntl(<DashboardGrid.WrappedComponent {...getProps()} />);
   expect(component).toMatchSnapshot();
-  const panelElements = component.find('Connect(InjectIntl(DashboardPanelUi))');
+  const panelElements = component.find('InjectIntl(DashboardPanelUi)');
   expect(panelElements.length).toBe(2);
 });
 
@@ -101,4 +98,17 @@ test('renders DashboardGrid with no visualizations', () => {
   props.container.updateInput({ panels: {} });
   const component = shallowWithIntl(<DashboardGrid.WrappedComponent {...props} />);
   expect(component).toMatchSnapshot();
+});
+
+test('DashboardGrid removes panel when removed from container', async () => {
+  const props = getProps();
+  const component = shallowWithIntl(<DashboardGrid.WrappedComponent {...props} />);
+  const originalPanels = props.container.getInput().panels;
+  const filteredPanels = { ...originalPanels };
+  delete filteredPanels['1'];
+  props.container.updateInput({ panels: filteredPanels });
+  await nextTick();
+  component.update();
+  const panelElements = component.find('InjectIntl(DashboardPanelUi)');
+  expect(panelElements.length).toBe(1);
 });

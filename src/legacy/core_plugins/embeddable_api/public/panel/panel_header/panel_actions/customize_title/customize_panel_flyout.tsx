@@ -20,6 +20,7 @@
 import React, { Component } from 'react';
 
 import { EuiFlyoutBody, EuiFlyoutHeader, EuiTitle } from '@elastic/eui';
+import { ExecuteActionContext } from 'plugins/embeddable_api/actions';
 import { Container, Embeddable } from '../../../../';
 import { CustomizeTitleForm } from './customize_title_form';
 
@@ -33,37 +34,24 @@ interface CustomizePanelProps {
 }
 
 interface State {
-  titleOverride: string;
+  title: string | undefined;
 }
 
 export class CustomizePanelFlyout extends Component<CustomizePanelProps, State> {
-  private unsubscribe?: () => void;
-  private mounted: boolean = false;
   constructor(props: CustomizePanelProps) {
     super(props);
     this.state = {
-      titleOverride: props.container.getEmbeddableCustomization(props.embeddable.id).title,
+      title: props.container.getInputForEmbeddable(props.embeddable.id).title,
     };
   }
 
-  public componentWillMount() {
-    this.mounted = true;
-    this.unsubscribe = this.props.container.subscribeToOutputChanges(() => {
-      if (this.mounted) {
-        this.setState({
-          titleOverride: this.props.container.getEmbeddableCustomization(this.props.embeddable.id)
-            .title,
-        });
-      }
-    });
-  }
+  updateTitle = (title: string | undefined) => {
+    this.setState({ title });
+  };
 
-  public componentWillUnmount() {
-    this.mounted = false;
-    if (this.unsubscribe) {
-      this.unsubscribe();
-    }
-  }
+  reset = () => {
+    this.onUpdatePanelTitle({ title: undefined });
+  };
 
   public render() {
     return (
@@ -75,8 +63,8 @@ export class CustomizePanelFlyout extends Component<CustomizePanelProps, State> 
         </EuiFlyoutHeader>
         <EuiFlyoutBody>
           <CustomizeTitleForm
-            title={this.state.titleOverride || this.props.embeddable.getOutput().title}
-            onReset={this.props.onReset}
+            title={this.state.title || this.props.embeddable.getTitle()}
+            onReset={this.reset}
             onUpdatePanelTitle={this.props.onUpdatePanelTitle}
           />
         </EuiFlyoutBody>

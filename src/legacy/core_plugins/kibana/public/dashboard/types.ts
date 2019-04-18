@@ -26,7 +26,7 @@ export interface GridData {
 }
 
 export interface SavedDashboardPanel {
-  readonly id: string;
+  readonly id?: string;
   readonly version: string;
   readonly type: string;
   readonly panelIndex: string;

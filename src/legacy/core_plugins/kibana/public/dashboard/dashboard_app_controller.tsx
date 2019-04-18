@@ -33,7 +33,6 @@ import { i18n } from '@kbn/i18n';
 
 import {
   embeddableFactories,
-  EmbeddableFactory,
   ErrorEmbeddable,
   Filter,
   ViewMode,
@@ -50,11 +49,6 @@ import { showSaveModal } from 'ui/saved_objects/show_saved_object_save_modal';
 import { ShareContextMenuExtensionsRegistryProvider, showShareContextMenu } from 'ui/share';
 // @ts-ignore
 import { getUnhashableStatesProvider } from 'ui/state_management/state_hashing';
-// @ts-ignore
-
-// @ts-ignore
-// @ts-ignore
-// @ts-ignore
 
 import {
   DASHBOARD_CONTAINER_TYPE,
@@ -75,8 +69,11 @@ import { Query } from 'ui/visualize';
 import { QueryLanguageType } from 'ui/visualize/loader/types';
 import { TopNavIds } from './top_nav/top_nav_ids';
 import { showOptionsPopover } from './top_nav/show_options_popover';
+// @ts-ignore
 import { showCloneModal } from './top_nav/show_clone_modal';
+// @ts-ignore
 import { DashboardSaveModal } from './top_nav/save_modal';
+// @ts-ignore
 import { getTopNavConfig } from './top_nav/get_top_nav_config';
 import { saveDashboard } from './lib';
 import { getDashboardTitle } from './dashboard_strings';
@@ -550,20 +547,30 @@ export class DashboardAppController {
     showCloneModal(onClone, currentTitle);
   }
 
-  private refreshDashboardContainer() {
-    if (!this.dashboardContainer) {
-      return;
+  private getChangesFromAppStateForContainerState() {
+    const appStateDashboardInput = this.getDashboardInput();
+    if (!this.dashboardContainer || isErrorEmbeddable(this.dashboardContainer)) {
+      return appStateDashboardInput;
     }
-    const dashboardInput = this.getDashboardInput();
-    const mergedInput = {
-      ...this.dashboardContainer.getInput(),
-      ...dashboardInput,
-    };
-    if (!_.isEqual(this.dashboardContainer.getInput(), mergedInput)) {
-      this.dashboardContainer.updateInput({
-        ...this.dashboardContainer.getInput(),
-        ...dashboardInput,
-      });
+
+    const containerInput = this.dashboardContainer.getInput();
+    const differences: Partial<DashboardContainerInput> = {};
+    Object.keys(containerInput).forEach(key => {
+      const containerValue = (containerInput as { [key: string]: unknown })[key];
+      const appStateValue = (appStateDashboardInput as { [key: string]: unknown })[key];
+      if (!_.isEqual(containerValue, appStateValue)) {
+        (differences as { [key: string]: unknown })[key] = appStateValue;
+      }
+    });
+
+    return Object.values(differences).length === 0 ? undefined : differences;
+  }
+
+  private refreshDashboardContainer() {
+    const changes = this.getChangesFromAppStateForContainerState();
+    if (changes && this.dashboardContainer) {
+      console.log('refreshDashboardContainer: changes are: ', changes);
+      this.dashboardContainer.updateInput(changes);
     }
   }
 
@@ -606,10 +613,17 @@ export class DashboardAppController {
           this.dashboardContainer = container;
 
           this.updateIndexPatterns();
-          this.unsubscribe = this.dashboardContainer.subscribeToInputChanges(() => {
+          this.unsubscribe = this.dashboardContainer.subscribeToInputChanges(async changes => {
+            console.log('Dashboard app controller: input changes:', changes);
             // This has to be first because handleDashboardContainerChanges cuases
             // appState.save which will cause refreshDashboardContainer to be called.
-            this.queryFilter.setFilters(container.getInput().filters);
+            await this.queryFilter.addFilters(container.getInput().filters);
+
+            this.$scope.model.filters = container.getInput().filters;
+            if (!_.isEqual(this.queryFilter.getFilters(), container.getInput().filters)) {
+              console.log('diff');
+              // throw new Error('no!');
+            }
 
             this.dashboardStateManager.applyFilters(
               this.$scope.model.query,
@@ -620,6 +634,14 @@ export class DashboardAppController {
 
             this.$scope.$evalAsync(() => {
               this.dashboardStateManager.handleDashboardContainerChanges(container);
+              console.log(
+                'Dashboard app controller: input changes should be all propagated, were they?'
+              );
+              const appChanges = this.getChangesFromAppStateForContainerState();
+              if (appChanges !== undefined) {
+                console.log(this.getChangesFromAppStateForContainerState());
+                throw new Error('Changes should be null');
+              }
             });
           });
           this.dashboardStateManager.registerChangeListener(() => this.refreshDashboardContainer());

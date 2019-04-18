@@ -13,6 +13,7 @@ import { ActionFactory, ActionSavedObject, addAction } from '../dynamic_actions'
 import { interpretAst } from '../../../interpreter/public/interpreter';
 import { NavigateAction } from './navigate_action';
 import { NavigateActionEditor } from './navigate_action_editor';
+import { SerializedDynamicAction } from '../dynamic_actions/action_saved_object';
 
 export const NAVIGATE_ACTION_TYPE = 'navigateActionType';
 
@@ -38,10 +39,10 @@ export class NavigateActionFactory extends ActionFactory {
   }
 
   public createNew() {
-    return new NavigateAction();
+    return Promise.resolve(new NavigateAction());
   }
 
-  public fromSavedObject(actionSavedObject: ActionSavedObject) {
+  public create(actionSavedObject: SerializedDynamicAction) {
     return new NavigateAction(actionSavedObject);
   }
 }

@@ -44,7 +44,7 @@ interface State {
 }
 
 export function isErrorEmbeddable(
-  embeddable: ErrorEmbeddable | DashboardEmbeddable
+  embeddable: ErrorEmbeddable | DashboardEmbeddable | DashboardContainer
 ): embeddable is ErrorEmbeddable {
   return (embeddable as ErrorEmbeddable).getInput().errorMessage !== undefined;
 }

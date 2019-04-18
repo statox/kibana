@@ -29,17 +29,17 @@ import {
 import { ViewMode } from '../types';
 
 export interface PanelState<E extends { [key: string]: unknown } = { [key: string]: unknown }> {
+  savedObjectId?: string;
+
   embeddableId: string;
   // The type of embeddable in this panel. Will be used to find the factory in which to
   // load the embeddable.
   type: string;
 
-  // Stores customization state for the embeddable. Perhaps should be part of initialInput.
-  customization?: { [key: string]: any };
-
   // Stores input for this embeddable that is specific to this embeddable. Other parts of embeddable input
-  // will be derived from the container's input.
-  initialInput: E;
+  // will be derived from the container's input. **Any state in here will override any state derived from
+  // the container.**
+  partialInput: E; // TODO: rename explicitInput vs derivedInput that is taken from the container state.
 }
 
 export interface ContainerOutput extends EmbeddableOutput {
@@ -62,7 +62,7 @@ export interface ContainerInput extends EmbeddableInput {
 }
 
 export abstract class Container<
-  CEI extends EmbeddableInput = EmbeddableInput,
+  CEI extends Partial<EmbeddableInput> & { id: string } = { id: string },
   EO extends EmbeddableOutput = EmbeddableOutput,
   I extends ContainerInput = ContainerInput,
   O extends ContainerOutput = ContainerOutput
@@ -71,20 +71,20 @@ export abstract class Container<
   protected readonly embeddables: {
     [key: string]: Embeddable<EmbeddableInput, EO> | ErrorEmbeddable;
   } = {};
-  private embeddableUnsubscribes: { [key: string]: () => void } = {};
 
   constructor(
     type: string,
     input: I,
     output: O,
-    protected embeddableFactories: EmbeddableFactoryRegistry
+    protected embeddableFactories: EmbeddableFactoryRegistry,
+    parent?: Container
   ) {
-    super(type, input, output);
+    super(type, input, output, parent);
     this.initializeEmbeddables();
   }
 
-  public getEmbeddableCustomization(embeddableId: string) {
-    return this.input.panels[embeddableId].customization;
+  public getPartialInput(embeddableId: string) {
+    return this.input.panels[embeddableId].partialInput;
   }
 
   public getViewMode() {
@@ -95,21 +95,89 @@ export abstract class Container<
     return this.input.hidePanelTitles ? this.input.hidePanelTitles : false;
   }
 
+  public updateInput(changes: Partial<I>): void {
+    super.updateInput(changes);
+  }
+
+  public updateEmbeddableInput<EEI extends EmbeddableInput = EmbeddableInput>(
+    id: string,
+    changes: Partial<EEI>
+  ) {
+    this.updateInput({
+      panels: {
+        ...this.input.panels,
+        [id]: {
+          ...this.input.panels[id],
+          partialInput: {
+            ...this.input.panels[id].partialInput,
+            ...changes,
+          },
+        },
+      },
+    } as Partial<I>);
+  }
+
   public async addNewEmbeddable<
     EEI extends EmbeddableInput = EmbeddableInput,
     E extends Embeddable<EEI, EO> = Embeddable<EEI, EO>
   >(
     type: string,
-    initialInput: EmbeddableInputMissingFromContainer<EEI, CEI>
+    partialInput: Partial<EmbeddableInputMissingFromContainer<EEI, CEI>>
   ): Promise<E | ErrorEmbeddable> {
     const factory = this.embeddableFactories.getFactoryByName<EmbeddableFactory<EEI, EO, E>>(type);
-    const panelState = this.createNewPanelState<EEI>({ type, initialInput });
+
+    const panelState = this.createNewPanelState<EEI>(factory, partialInput);
+
     this.setPanelState<EEI>(panelState);
     const embeddable = await factory.create(
-      this.getInputForEmbeddable<EEI>(panelState.embeddableId)
+      this.getInputForEmbeddable<EEI>(panelState.embeddableId),
+      this
     );
-    this.subscribeToEmbeddableInputChanges(embeddable);
-    embeddable.setContainer(this);
+    this.embeddables[embeddable.id] = embeddable;
+
+    this.updateOutput({
+      ...this.output,
+      embeddableLoaded: {
+        [panelState.embeddableId]: true,
+      },
+    });
+    return embeddable;
+  }
+
+  private createNewExplicitEmbeddableInput<
+    EEI extends EmbeddableInput = EmbeddableInput,
+    E extends Embeddable<EEI, EO> = Embeddable<EEI, EO>
+  >(
+    id: string,
+    factory: EmbeddableFactory<EEI, EO, E>,
+    partial: Partial<EmbeddableInputMissingFromContainer<EEI, CEI>> = {}
+  ) {
+    const inheritedInput = this.getInheritedInput(id) as { [key: string]: unknown };
+    const defaults = factory.getDefaultInputParameters() as { [key: string]: unknown };
+
+    // Container input overrides defaults.
+    const defaultExplicitInput: { [key: string]: unknown } = partial;
+    Object.keys(defaults).forEach(key => {
+      if (inheritedInput[key] === undefined && defaultExplicitInput[key] === undefined) {
+        defaultExplicitInput[key] = defaults[key];
+      }
+    });
+    return defaultExplicitInput;
+  }
+
+  public async addSavedObjectEmbeddable<
+    EEI extends EmbeddableInput = EmbeddableInput,
+    E extends Embeddable<EEI, EO> = Embeddable<EEI, EO>
+  >(type: string, savedObjectId: string): Promise<E | ErrorEmbeddable> {
+    const factory = this.embeddableFactories.getFactoryByName<EmbeddableFactory<EEI, EO, E>>(type);
+    const panelState = this.createNewPanelState<EEI>(factory);
+    panelState.savedObjectId = savedObjectId;
+    this.setPanelState<EEI>(panelState);
+    const embeddable = await factory.createFromSavedObject(
+      savedObjectId,
+      this.getInputForEmbeddable<EEI>(panelState.embeddableId),
+      this
+    );
     this.embeddables[embeddable.id] = embeddable;
 
     this.updateOutput({
@@ -126,8 +194,6 @@ export abstract class Container<
     embeddable.destroy();
     delete this.embeddables[embeddableId];
 
-    this.embeddableUnsubscribes[embeddableId]();
-
     const changedInput: { panels: { [key: string]: PanelState } } = {
       panels: {},
     };
@@ -136,13 +202,13 @@ export abstract class Container<
         changedInput.panels[panel.embeddableId] = panel;
       }
     });
-    this.updateInput({ ...this.input, changedInput });
+    this.updateInput({ ...changedInput } as Partial<I>);
   }
 
-  public getEmbeddable<EEI extends EmbeddableInput = EmbeddableInput>(
+  public getEmbeddable<E extends Embeddable<EmbeddableInput, EO> = Embeddable<EmbeddableInput, EO>>(
     id: string
-  ): Embeddable<EEI, EO> {
-    return this.embeddables[id] as Embeddable<EEI, EO>;
+  ): E {
+    return this.embeddables[id] as E;
   }
 
   private setPanelState<EEI extends EmbeddableInput = EmbeddableInput>(
@@ -161,7 +227,6 @@ export abstract class Container<
     panelState: PanelState<EmbeddableInputMissingFromContainer<EEI, CEI>>
   ) {
     this.updateInput({
-      ...this.input,
       panels: {
         ...this.input.panels,
         [panelState.embeddableId]: {
@@ -169,7 +234,7 @@ export abstract class Container<
           ...panelState,
         },
       },
-    });
+    } as Partial<I>);
   }
 
   protected async loadEmbeddable<EEI extends EmbeddableInput = EmbeddableInput>(
@@ -183,35 +248,38 @@ export abstract class Container<
       panelState.type
     );
 
-    const embeddable = await factory.create(
-      this.getInputForEmbeddable<EEI>(panelState.embeddableId)
-    );
-    this.subscribeToEmbeddableInputChanges(embeddable);
-    embeddable.setContainer(this);
+    const embeddable = panelState.savedObjectId
+      ? await factory.createFromSavedObject(
+          panelState.savedObjectId,
+          this.getInputForEmbeddable<EEI>(panelState.embeddableId),
+          this
+        )
+      : await factory.create(this.getInputForEmbeddable<EEI>(panelState.embeddableId), this);
     this.embeddables[embeddable.id] = embeddable;
     this.updatePanelState<EEI>(panelState);
 
     this.updateOutput({
-      ...this.output,
       embeddableLoaded: {
         [panelState.embeddableId]: true,
       },
-    });
+    } as Partial<O>);
   }
 
-  protected createNewPanelState<EEI extends EmbeddableInput = EmbeddableInput>({
-    type,
-    initialInput,
-  }: {
-    type: string;
-    initialInput: EmbeddableInputMissingFromContainer<EEI, CEI> & { id?: string };
-  }): PanelState<EmbeddableInputMissingFromContainer<EEI, CEI>> {
-    const embeddableId = initialInput.id || uuid.v4();
-    return {
-      type,
+  protected createNewPanelState<EEI extends EmbeddableInput = EmbeddableInput>(
+    factory: EmbeddableFactory<EEI, EO>,
+    partial: Partial<EmbeddableInputMissingFromContainer<EEI, CEI>> = {}
+  ): PanelState<EmbeddableInputMissingFromContainer<EEI, CEI>> {
+    const embeddableId = uuid.v4();
+    const defaultExplicitInput = this.createNewExplicitEmbeddableInput<EEI>(
       embeddableId,
-      customization: {},
-      initialInput,
+      factory,
+      partial
+    ) as EmbeddableInputMissingFromContainer<EEI, CEI>;
+
+    return {
+      type: factory.name,
+      embeddableId,
+      partialInput: defaultExplicitInput,
     };
   }
 
@@ -220,43 +288,33 @@ export abstract class Container<
     return panelState as PanelState<EI>;
   }
 
-  protected abstract getInputForEmbeddableFromContainer(embeddableId: string): CEI;
+  protected abstract getInheritedInput(id: string): CEI;
 
-  protected getInputForEmbeddable<EEI extends EmbeddableInput = EmbeddableInput>(
+  public getExplicitEmbeddableInput(id: string) {
+    return this.getPanelStateForEmbeddable(id).partialInput;
+  }
+
+  public getInputForEmbeddable<EEI extends EmbeddableInput = EmbeddableInput>(
     embeddableId: string
   ): EEI {
-    const containerInput: CEI = this.getInputForEmbeddableFromContainer(embeddableId);
+    const containerInput: CEI = this.getInheritedInput(embeddableId);
     const panelState = this.getPanelState<EmbeddableInputMissingFromContainer<EEI, CEI>>(
       embeddableId
     );
 
     return ({
       ...containerInput,
-      ...panelState.initialInput,
+      ...panelState.partialInput,
       // Typescript has difficulties with inferring this type but it is accurate with all
       // tests I tried. Could probably be revisted with future releases of TS to see if
       // it can accurately infer the type.
     } as unknown) as EEI;
   }
 
-  private subscribeToEmbeddableInputChanges(embeddable: Embeddable) {
-    this.embeddableUnsubscribes[embeddable.id] = embeddable.subscribeToInputChanges(
-      (changes: Partial<EmbeddableInput>) => {
-        this.updateInput({
-          ...this.input,
-          panels: {
-            ...this.input.panels,
-            [embeddable.id]: {
-              ...this.input.panels[embeddable.id],
-              initialInput: {
-                ...this.input.panels[embeddable.id].initialInput,
-                ...changes,
-              },
-            },
-          },
-        });
-      }
-    );
+  public getPanelStateForEmbeddable<EEI extends EmbeddableInput = EmbeddableInput>(
+    id: string
+  ): PanelState {
+    return this.input.panels[id];
   }
 
   private async initializeEmbeddables() {
@@ -266,16 +324,5 @@ export abstract class Container<
       >)
     );
     await Promise.all(promises);
-
-    this.subscribeToInputChanges(() => this.setEmbeddablesInput());
-  }
-
-  private setEmbeddablesInput() {
-    Object.values(this.embeddables).forEach(
-      (embeddable: Embeddable<EmbeddableInput, EO> | ErrorEmbeddable) => {
-        const input = this.getInputForEmbeddable<EmbeddableInput>(embeddable.id);
-        embeddable.updateInput(input);
-      }
-    );
   }
 }

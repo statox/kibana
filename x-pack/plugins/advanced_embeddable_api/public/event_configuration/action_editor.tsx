@@ -22,6 +22,8 @@ import {
   Trigger,
   triggerRegistry,
   getActionsForTrigger,
+  Container,
+  actionRegistry,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 import { ConfigureTemplateParameters } from './configure_template_parameters';
 import {
@@ -40,6 +42,7 @@ export interface ActionEditorProps {
   action: DynamicAction;
   embeddable: Embeddable;
   selectedTriggerId?: string;
+  container?: Container;
 }
 interface ActionEditorState {
   action: DynamicAction;
@@ -57,7 +60,7 @@ export class ActionEditor extends React.Component<ActionEditorProps, ActionEdito
   constructor(props: ActionEditorProps) {
     super(props);
     this.state = {
-      config: this.props.action.getSavedObjectAttributes().configuration,
+      config: this.props.action.serialized().configuration,
       selectedTrigger: this.props.selectedTriggerId || '',
       triggerIds: [],
       factoryType: this.props.embeddable
@@ -78,9 +81,9 @@ export class ActionEditor extends React.Component<ActionEditorProps, ActionEdito
 
   public async componentDidMount() {
     if (this.props.action.id) {
-      const action = await getAction(this.props.action.id);
+      const action = await getAction(this.props.action.id, this.props.embeddable);
       if (isDynamicAction(action)) {
-        this.setState({ action, config: action.getSavedObjectAttributes().configuration });
+        this.setState({ action, config: action.serialized().configuration });
       }
     }
 
@@ -99,28 +102,8 @@ export class ActionEditor extends React.Component<ActionEditorProps, ActionEdito
   public saveAndClose = async () => {
     if (this.state.action) {
       this.state.action.updateConfiguration(this.state.config);
-      await saveAction(this.state.action);
 
-      const actionsForTrigger = await getActionsForTrigger(this.state.selectedTrigger, {
-        embeddable: this.props.embeddable,
-        container: this.props.embeddable.container,
-      });
-      if (!actionsForTrigger.find(action => action.id === this.state.action.id)) {
-        await addTriggerActionMapping({
-          triggerId: this.state.selectedTrigger,
-          actionId: this.state.action.id,
-        });
-      }
-
-      if (this.props.selectedTriggerId) {
-        const actionsForOriginalTrigger = await getActionsForTrigger(this.props.selectedTriggerId);
-        if (actionsForOriginalTrigger.find(action => action.id === this.state.action.id)) {
-          await removeTriggerActionMapping({
-            triggerId: this.props.selectedTriggerId,
-            actionId: this.state.action.id,
-          });
-        }
-      }
+      await saveAction(this.state.action, this.props.embeddable);
 
       this.cancel();
     }
@@ -128,11 +111,7 @@ export class ActionEditor extends React.Component<ActionEditorProps, ActionEdito
 
   public deleteAndClose = async () => {
     if (this.state.action && this.state.action.id) {
-      await deleteAction(this.state.action.id, chrome.getSavedObjectsClient());
-      await removeTriggerActionMapping({
-        triggerId: this.state.selectedTrigger,
-        actionId: this.state.action.id,
-      });
+      await deleteAction(this.state.action.id, this.props.embeddable);
     }
     this.cancel();
   };

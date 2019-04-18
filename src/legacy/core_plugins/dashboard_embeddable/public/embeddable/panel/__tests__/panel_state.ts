@@ -18,7 +18,6 @@
  */
 
 import expect from '@kbn/expect';
-import { PanelState } from '../../selectors';
 import { createPanelState } from '../panel_state';
 
 function createPanelWithDimensions(x: number, y: number, w: number, h: number): PanelState {

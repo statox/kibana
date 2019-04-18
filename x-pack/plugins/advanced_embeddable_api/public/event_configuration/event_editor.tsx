@@ -20,20 +20,21 @@ import {
   Embeddable,
   Trigger,
   triggerRegistry,
-  getActionsForTrigger,
+  actionRegistry,
+  Container,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 import { ActionEditor } from './action_editor';
 import { CreateNewActionModal } from './create_new_action_modal';
 import {
   deleteAction,
   removeTriggerActionMapping,
-  DynamicAction,
   isDynamicAction,
   ActionFactory,
   actionFactoryRegistry,
 } from '../dynamic_actions';
 
 interface Props {
+  container?: Container;
   embeddable: Embeddable;
   actionTypes?: string[];
   hideTriggerIds?: string[];
@@ -134,12 +135,13 @@ export class EventEditor extends React.Component<Props, State> {
 
       const context = {
         embeddable: this.props.embeddable,
-        container: this.props.embeddable ? this.props.embeddable.container : undefined,
+        container: this.props.container,
       };
 
-      const actionsForTrigger = (await getActionsForTrigger(trigger.id, context)).filter(
-        (action: Action) => action.allowDynamicTriggerMapping()
-      );
+      const actionsForTrigger = (await actionRegistry.getActionsForTrigger(
+        trigger.id,
+        context
+      )).filter((action: Action) => action.allowDynamicTriggerMapping());
 
       this.actions.push(...actionsForTrigger);
 

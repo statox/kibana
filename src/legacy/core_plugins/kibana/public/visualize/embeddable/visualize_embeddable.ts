@@ -27,6 +27,7 @@ import {
   Query,
   TimeRange,
   Trigger,
+  Container,
 } from 'plugins/embeddable_api/index';
 import { StaticIndexPattern } from 'ui/index_patterns';
 import { PersistedState } from 'ui/persisted_state';
@@ -47,20 +48,22 @@ export interface VisualizeEmbeddableConfiguration {
   loader: VisualizeLoader;
 }
 
-interface VisualizeOverrides {
-  vis?: {
-    colors?: { [key: string]: string };
-  };
-  title?: string;
-}
+// interface VisualizeOverrides {
+//   vis?: {
+//     colors?: { [key: string]: string };
+//   };
+//   title?: string;
+// }
 
 export interface VisualizeInput extends EmbeddableInput {
   timeRange?: TimeRange;
   query?: Query;
   filters?: Filters;
   hidePanelTitles?: boolean;
-  customization: VisualizeOverrides;
-  savedObjectId: string;
+  vis?: {
+    colors?: { [key: string]: string };
+  };
+  title?: string;
 }
 
 export interface VisualizeOutput extends EmbeddableOutput {
@@ -74,21 +77,25 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
   private loader: VisualizeLoader;
   private uiState: PersistedState;
   private handler?: EmbeddedVisualizeHandler;
-  private customization?: object;
-  private panelTitle?: string;
   private timeRange?: TimeRange;
   private query?: Query;
   private filters?: Filters;
 
   constructor(
     { savedVisualization, indexPatterns, editUrl, loader }: VisualizeEmbeddableConfiguration,
-    initialInput: VisualizeInput
+    initialInput: VisualizeInput,
+    parent?: Container
   ) {
-    super(VISUALIZE_EMBEDDABLE_TYPE, initialInput, {
-      title: savedVisualization.title,
-      editUrl,
-      indexPatterns,
-    });
+    super(
+      VISUALIZE_EMBEDDABLE_TYPE,
+      initialInput,
+      {
+        title: savedVisualization.title,
+        editUrl,
+        indexPatterns,
+      },
+      parent
+    );
     this.savedVisualization = savedVisualization;
     this.loader = loader;
 
@@ -99,9 +106,9 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
 
     this.uiState.on('change', this.uiStateChangeHandler);
 
-    this.subscribeToInputChanges(() => {
+    this.subscribeToInputChanges(changes => {
       this.reload();
-      this.handleInputChanges(this.input);
+      this.handleInputChanges(changes);
     });
   }
 
@@ -120,16 +127,16 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
    * Transfers all changes in the containerState.customization into
    * the uiState of this visualization.
    */
-  public transferCustomizationsToUiState(containerState: VisualizeInput) {
+  public transferCustomizationsToUiState(changes: Partial<VisualizeInput>) {
     // Check for changes that need to be forwarded to the uiState
     // Since the vis has an own listener on the uiState we don't need to
     // pass anything from here to the handler.update method
-    const customization = containerState.customization;
-    if (customization && !_.isEqual(this.customization, customization)) {
+    const visCustomizations = changes.vis;
+    if (visCustomizations && !_.isEqual(this.input.vis, visCustomizations)) {
       // Turn this off or the uiStateChangeHandler will fire for every modification.
       this.uiState.off('change', this.uiStateChangeHandler);
       this.uiState.clearAllKeys();
-      this.uiState.set('vis', customization.vis);
+      this.uiState.set('vis', visCustomizations);
       // Object.getOwnPropertyNames(customization).forEach(key => {
       //   this.uiState.set(key, customization[key]);
       // });
@@ -137,7 +144,7 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
     }
   }
 
-  public handleInputChanges(input: VisualizeInput) {
+  public handleInputChanges(input: Partial<VisualizeInput>) {
     this.transferCustomizationsToUiState(input);
 
     const updatedParams: VisualizeUpdateParams = {};
@@ -160,12 +167,16 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
       this.query = input.query;
     }
 
-    const derivedPanelTitle = this.getPanelTitle();
-    if (this.panelTitle !== derivedPanelTitle) {
+    if (input.title || input.hidePanelTitles) {
+      let derivedPanelTitle = '';
+      if (!this.input.hidePanelTitles) {
+        derivedPanelTitle =
+          this.input.title === undefined ? this.savedVisualization.title : this.input.title;
+      }
       updatedParams.dataAttrs = {
         title: derivedPanelTitle,
       };
-      this.panelTitle = derivedPanelTitle;
+      this.updateOutput({ title: derivedPanelTitle });
     }
 
     if (this.handler && !_.isEmpty(updatedParams)) {
@@ -179,7 +190,6 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
    * @param {ContainerState} containerState
    */
   public render(domNode: HTMLElement) {
-    this.panelTitle = this.getPanelTitle();
     this.timeRange = this.input.timeRange;
     this.query = this.input.query;
     this.filters = this.input.filters;
@@ -188,7 +198,7 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
 
     const dataAttrs: { [key: string]: string } = {
       'shared-item': '',
-      title: this.panelTitle,
+      title: this.output.title,
     };
     if (this.savedVisualization.description) {
       dataAttrs.description = this.savedVisualization.description;
@@ -227,26 +237,9 @@ export class VisualizeEmbeddable extends Embeddable<VisualizeInput, VisualizeOut
     }
   }
 
-  /**
-   * Retrieve the panel title for this panel from the container state.
-   * This will either return the overwritten panel title or the visualization title.
-   */
-  private getPanelTitle() {
-    let derivedPanelTitle = '';
-    if (!this.input.hidePanelTitles) {
-      derivedPanelTitle =
-        this.input.customization && this.input.customization.title !== undefined
-          ? this.input.customization.title
-          : this.savedVisualization.title;
-    }
-    return derivedPanelTitle;
-  }
-
   private uiStateChangeHandler = () => {
     this.updateInput({
-      customization: {
-        ...this.uiState.toJSON(),
-      },
+      ...this.uiState.toJSON(),
     });
   };
 }

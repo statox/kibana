@@ -30,6 +30,15 @@ interface ApplyFilterContainerInput extends ContainerInput {
 
 const APPLY_FILTER_ACTION_ID = 'APPLY_FILTER_ACTION_ID';
 
+function containerAcceptsFilterInput(
+  container: Embeddable | Container<{ id: string }, {}, ApplyFilterContainerInput>
+): container is Container<{ id: string }, {}, ApplyFilterContainerInput> {
+  return (
+    (container as Container<{ id: string }, {}, ApplyFilterContainerInput>).getInput().filters !==
+    undefined
+  );
+}
+
 export class ApplyFilterAction extends Action<
   Embeddable,
   Container<EmbeddableInput, EmbeddableOutput, ApplyFilterContainerInput>,
@@ -48,24 +57,34 @@ export class ApplyFilterAction extends Action<
     return 'Apply filter to current view';
   }
 
-  public execute({
-    container,
-    triggerContext,
-  }: {
-    container?: Container<EmbeddableInput, EmbeddableOutput, ApplyFilterContainerInput>;
-    triggerContext?: { filters: Filter[] };
-  }) {
-    if (!container) {
-      throw new Error('Apply filter action requires a container');
+  public isCompatible(context: { embeddable: Embeddable }) {
+    let root = context.embeddable;
+    while (root.parent) {
+      root = root.parent;
     }
 
+    return Promise.resolve(containerAcceptsFilterInput(root));
+  }
+
+  public execute({
+    embeddable,
+    triggerContext,
+  }: {
+    embeddable: Embeddable;
+    triggerContext?: { filters: Filter[] };
+  }) {
     if (!triggerContext) {
       throw new Error('Applying a filter requires a filter as context');
     }
 
-    const newState = _.cloneDeep(container.getInput()) as ApplyFilterContainerInput;
-    newState.filters = triggerContext.filters;
-    container.updateInput(newState);
+    let root = embeddable;
+    while (root.parent) {
+      root = root.parent;
+    }
+
+    (root as Container<{ id: string }, {}, ApplyFilterContainerInput>).updateInput({
+      filters: triggerContext.filters,
+    });
   }
 }
 

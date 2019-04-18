@@ -40,7 +40,8 @@ export interface ActionContext<E extends Embeddable = Embeddable, C extends Cont
 export abstract class Action<
   E extends Embeddable = Embeddable,
   C extends Container = Container,
-  T extends {} = {}
+  T extends {} = {},
+  U = undefined
 > {
   // Used to determine the order when there is more than one action matched to a trigger.
   // Higher numbers are displayed first.
@@ -53,7 +54,10 @@ export abstract class Action<
 
   public embeddableTemplateMapping: { [key: string]: string } = {};
 
-  constructor(public readonly id: string) {}
+  constructor(
+    public readonly id: string,
+    protected getDataFromUser?: (context: ExecuteActionContext<E, C, T>) => Promise<U>
+  ) {}
 
   public getIcon(context: ActionContext): EuiContextMenuItemIcon | undefined {
     return undefined;
@@ -76,6 +80,8 @@ export abstract class Action<
       return Promise.resolve(true);
     }
   }
+
+  public async requestUserContext() {}
 
   public abstract execute(context: ExecuteActionContext<E, C, T>): void;
 

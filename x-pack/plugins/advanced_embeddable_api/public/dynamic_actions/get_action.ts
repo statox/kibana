@@ -4,24 +4,23 @@
  * you may not use this file except in compliance with the Elastic License.
  */
 
-import chrome from 'ui/chrome';
+import { Embeddable } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
 import { DynamicAction } from './dynamic_action';
-import { ActionSavedObjectAttributes } from './action_saved_object';
 import { actionFactoryRegistry } from './action_factory_registry';
+import { hasDynamicActions } from './actionable_embeddable';
 
-export async function getAction(
-  id: string
-): Promise<DynamicAction | { message: string; statusCode?: number }> {
-  const savedObjectsClient = chrome.getSavedObjectsClient();
-  const response = await savedObjectsClient.get<ActionSavedObjectAttributes>('ui_action', id);
-  if (response.error) {
-    return Promise.resolve(response.error);
+export function getAction(id: string, embeddable: Embeddable): DynamicAction | undefined {
+  const existingDynamicActions = hasDynamicActions(embeddable)
+    ? embeddable.getInput().dynamicActions
+    : [];
+
+  const serializedAction = existingDynamicActions.find(serialized => serialized.id === id);
+
+  if (!serializedAction) {
+    return undefined;
   }
 
-  const factory = actionFactoryRegistry.getFactoryById(response.attributes.type);
-  if (!factory) {
-    return Promise.resolve({ message: 'Factory not found' });
-  } else {
-    return factory.fromSavedObject(response);
-  }
+  const factory = actionFactoryRegistry.getFactoryById(serializedAction.type);
+
+  return factory.create(serializedAction);
 }

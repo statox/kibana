@@ -16,19 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+export { actionRegistry, ExecuteActionContext, Action, ActionContext } from './actions';
+
 export {
-  actionFactoryRegistry,
-  actionRegistry,
-  ExecuteActionContext,
-  Action,
-  ActionContext,
-  ActionFactory,
-  addAction,
-} from './actions';
+  APPLY_FILTER_TRIGGER,
+  triggerRegistry,
+  Trigger,
+  executeTriggerActions,
+  CONTEXT_MENU_TRIGGER,
+} from './triggers';
 
-export * from './triggers';
-
-export { Container, ContainerInput, ContainerOutput, PanelState } from './containers';
+export {
+  Container,
+  ContainerInput,
+  ContainerOutput,
+  PanelState,
+  EmbeddableInputMissingFromContainer,
+} from './containers';
 
 export {
   EmbeddableFactory,
@@ -43,7 +47,7 @@ export {
   isErrorEmbeddable,
 } from './embeddables';
 
-export * from './context_menu_actions';
+export { ContextMenuAction, ContextMenuActionsRegistryProvider } from './context_menu_actions';
 
 export {
   Query,

@@ -51,7 +51,7 @@ export class ExpressionActionFactory extends ActionFactory {
     );
   }
 
-  public fromSavedObject(actionSavedObject: ActionSavedObject): ExpressionAction {
+  public create(actionSavedObject: ActionSavedObject): ExpressionAction {
     return new ExpressionAction(actionSavedObject);
   }
 

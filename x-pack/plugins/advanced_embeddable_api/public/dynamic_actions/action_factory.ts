@@ -10,7 +10,7 @@ import {
   Trigger,
   Action,
 } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
-import { ActionSavedObject } from './action_saved_object';
+import { ActionSavedObject, SerializedDynamicAction } from './action_saved_object';
 import { DynamicAction } from './dynamic_action';
 
 export interface CreateOptions {
@@ -51,7 +51,7 @@ export abstract class ActionFactory {
     onChange: (config: string) => void
   ): void;
 
-  public abstract fromSavedObject(actionSavedObject: ActionSavedObject): DynamicAction;
+  public abstract create(serializedData: SerializedDynamicAction): DynamicAction;
 
   public abstract async createNew(): Promise<DynamicAction>;
 }

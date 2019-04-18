@@ -17,86 +17,77 @@
  * under the License.
  */
 
-import { EuiIcon } from '@elastic/eui';
-import { ViewMode } from 'plugins/embeddable_api/types';
+jest.mock('ui/metadata', () => ({
+  metadata: {
+    branch: 'my-metadata-branch',
+    version: 'my-metadata-version',
+  },
+}));
+
+jest.mock('ui/capabilities', () => ({
+  uiCapabilities: {
+    visualize: {
+      save: true,
+    },
+  },
+}));
+
 import React from 'react';
-import { getNewPlatform } from 'ui/new_platform';
-import { Action, Container, Embeddable } from '../../../..';
-import { FlyoutRef } from '../../../../../../../../core/public';
-import { CustomizePanelFlyout } from './customize_panel_flyout';
+import {
+  HELLO_WORLD_EMBEDDABLE,
+  HelloWorldEmbeddableFactory,
+  HelloWorldContainer,
+  HelloWorldEmbeddable,
+  HelloWorldInput,
+} from '../../../../__test__/index';
 
-const CUSTOMIZE_PANEL_ACTION_ID = 'CUSTOMIZE_PANEL_ACTION_ID';
+import { Container } from 'plugins/embeddable_api/containers';
+import { EmbeddableFactoryRegistry, isErrorEmbeddable } from 'plugins/embeddable_api/embeddables';
+// @ts-ignore
+import { findTestSubject } from '@elastic/eui/lib/test';
+import { nextTick } from 'test_utils/enzyme_helpers';
+import { CustomizePanelTitleAction } from './customize_panel_action';
 
-export class CustomizePanelTitleAction extends Action {
-  constructor() {
-    super();
-    this.id = CUSTOMIZE_PANEL_ACTION_ID;
-    this.title = 'Customize panel';
-    this.priority = 8;
-  }
+const onClose = jest.fn();
+let container: Container;
+let embeddable: HelloWorldEmbeddable;
 
-  public allowEditing() {
-    return false;
-  }
-
-  public isSingleton() {
-    return true;
-  }
-
-  public getIcon() {
-    return <EuiIcon type="pencil" />;
-  }
-
-  public isCompatible({
-    embeddable,
-    container,
-  }: {
-    embeddable: Embeddable;
-    container?: Container;
-  }) {
-    return Promise.resolve(
-      container && container.getInput().viewMode === ViewMode.EDIT ? true : false
-    );
-  }
-
-  public execute({ embeddable, container }: { embeddable: Embeddable; container: Container }) {
-    if (!embeddable || !container) {
-      throw new Error(
-        'Customize panel title action requires an embeddable and container as context.'
-      );
-    }
-    getNewPlatform().setup.core.overlays.openFlyout(
-      <CustomizePanelFlyout
-        container={container}
-        embeddable={embeddable}
-        onReset={() => this.onReset({ embeddable, container })}
-        onUpdatePanelTitle={title => this.onSetTitle({ embeddable, container }, title)}
-      />,
-      {
-        'data-test-subj': 'samplePanelActionFlyout',
-      }
-    );
-  }
-
-  private onReset(panelAPI: { embeddable: Embeddable; container: Container }) {
-    this.onSetTitle(panelAPI);
-  }
-
-  private onSetTitle({ embeddable }: { embeddable: Embeddable }, title?: string) {
-    embeddable.updateInput({ title });
-    // const currentContainerState = container.getOutput();
-    // const embeddableState = currentContainerState.panels[embeddable.id];
-    // container.setInput({
-    //   panels: {
-    //     ...currentContainerState.panels,
-    //     [embeddable.id]: {
-    //       ...embeddableState,
-    //       customization: {
-    //         ...embeddableState.customization,
-    //         title,
-    //       },
-    //     },
-    //   },
-    // });
-  }
+function createHelloWorldContainer(input = { id: '123', panels: {} }) {
+  const embeddableFactories = new EmbeddableFactoryRegistry();
+  embeddableFactories.registerFactory(new HelloWorldEmbeddableFactory());
+  return new HelloWorldContainer({ id: '123', panels: {} }, embeddableFactories);
 }
+
+beforeEach(async () => {
+  container = createHelloWorldContainer();
+  const helloEmbeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
+    HELLO_WORLD_EMBEDDABLE,
+    {
+      firstName: 'Joe',
+    }
+  );
+  if (isErrorEmbeddable(helloEmbeddable)) {
+    throw new Error('Error creating new hello world embeddable');
+  } else {
+    embeddable = helloEmbeddable;
+  }
+});
+
+test('Updates the embeddable title when given', async done => {
+  const getUserData = () => Promise.resolve({ title: 'What is up?' });
+  const customizePanelAction = new CustomizePanelTitleAction(getUserData);
+  expect(embeddable.getInput().title).toBeUndefined();
+  await customizePanelAction.execute({ embeddable, container });
+  await nextTick();
+  expect(embeddable.getInput().title).toBe('What is up?');
+
+  // Recreating the container should preserve the custom title.
+  const containerClone = createHelloWorldContainer(container.getInput());
+  // Need to wait for the container to tell us the embeddable has been loaded.
+  containerClone.subscribeToOutputChanges(() => {
+    if (containerClone.getOutput().embeddableLoaded[embeddable.id]) {
+      expect(embeddable.getInput().title).toBe('What is up?');
+      done();
+    }
+  });
+});

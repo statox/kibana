@@ -92,10 +92,6 @@ export class DashboardViewport extends React.Component<Props, State> {
     }
   }
 
-  public onPanelsUpdated = (panels: { [key: string]: DashboardPanelState }) => {
-    this.props.container.onPanelsUpdated(panels);
-  };
-
   public onExitFullScreenMode = () => {
     this.props.container.onExitFullScreenMode();
   };

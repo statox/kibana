@@ -4,10 +4,7 @@
  * you may not use this file except in compliance with the Elastic License.
  */
 
-import { SimpleSavedObject } from 'ui/saved_objects';
-import { SavedObjectAttributes } from 'src/legacy/server/saved_objects';
-
-export interface ActionSavedObjectAttributes extends SavedObjectAttributes {
+export interface SerializedDynamicAction {
   description: string;
   configuration: string;
   type: string;
@@ -15,6 +12,6 @@ export interface ActionSavedObjectAttributes extends SavedObjectAttributes {
   embeddableType: string;
   embeddableId: string;
   embeddableTemplateMapping: string;
+  id: string;
+  triggerId: string;
 }
-
-export type ActionSavedObject = SimpleSavedObject<ActionSavedObjectAttributes>;

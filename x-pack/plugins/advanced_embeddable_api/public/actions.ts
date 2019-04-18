@@ -17,12 +17,10 @@ import {
   CustomizeTimeRangeAction,
   CUSTOMIZE_TIME_RANGE,
 } from './customize_time_range';
-import { AddNavigateAction } from './navigate_action/add_navigate_action';
-import { AddNavigateActionFactory } from './navigate_action/add_navigate_action_factory';
 import { DashboardDrilldownActionFactory } from './navigate_action/dashboard_drilldown_action_factory';
 import { NavigateActionFactory } from './navigate_action/navigate_action_factory';
 
-import { ADD_NAVIGATE_ACTION } from './navigate_action/add_navigate_action_factory';
+import { ADD_NAVIGATE_ACTION, AddNavigateAction } from './navigate_action';
 
 actionRegistry.addAction(new CustomizeTimeRangeAction());
 actionRegistry.addAction(new AddNavigateAction());

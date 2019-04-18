@@ -4,11 +4,14 @@
  * you may not use this file except in compliance with the Elastic License.
  */
 
-import { SavedObjectsClient } from 'ui/saved_objects';
-import { actionRegistry } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
+import { Embeddable } from '../../../../../src/legacy/core_plugins/embeddable_api/public';
+import { hasDynamicActions, ActionableEmbeddable } from './actionable_embeddable';
 
-export async function deleteAction(id: string, savedObjectClient: SavedObjectsClient) {
-  savedObjectClient.delete('ui_action', id);
+export async function deleteAction(id: string, embeddable: Embeddable) {
+  const existingDynamicActions = hasDynamicActions(embeddable)
+    ? embeddable.getInput().dynamicActions
+    : [];
 
-  actionRegistry.removeAction(id);
+  const filteredActions = existingDynamicActions.filter(serialized => serialized.id !== id);
+  (embeddable as ActionableEmbeddable).updateInput({ dynamicActions: filteredActions });
 }

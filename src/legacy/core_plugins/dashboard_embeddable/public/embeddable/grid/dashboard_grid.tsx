@@ -26,10 +26,10 @@ import ReactGridLayout, { Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
-import { EmbeddableFactoryRegistry, ViewMode } from 'plugins/embeddable_api/index';
 // @ts-ignore
 import sizeMe from 'react-sizeme';
 import { toastNotifications } from 'ui/notify';
+import { EmbeddableFactoryRegistry, ViewMode } from '../../../../embeddable_api/public/index';
 import {
   DASHBOARD_GRID_COLUMN_COUNT,
   DASHBOARD_GRID_HEIGHT,
@@ -117,9 +117,7 @@ const ResponsiveSizedGrid = sizeMe(config)(ResponsiveGrid);
 
 export interface DashboardGridProps extends ReactIntl.InjectedIntlProps {
   embeddableFactories: EmbeddableFactoryRegistry;
-  onPanelsUpdated: (updatedPanels: PanelStateMap) => void;
   maximizedPanelId?: string;
-  useMargins: boolean;
   container: DashboardContainer;
 }
 
@@ -129,6 +127,7 @@ interface State {
   layout?: GridData[];
   panels: { [key: string]: DashboardPanelState };
   viewMode: ViewMode;
+  useMargins: boolean;
 }
 
 interface PanelLayout extends Layout {
@@ -159,6 +158,7 @@ class DashboardGridUi extends React.Component<DashboardGridProps, State> {
       focusedPanelIndex: undefined,
       panels: this.props.container.getInput().panels,
       viewMode: this.props.container.getInput().viewMode,
+      useMargins: this.props.container.getInput().useMargins,
     };
   }
 
@@ -187,11 +187,17 @@ class DashboardGridUi extends React.Component<DashboardGridProps, State> {
     });
 
     this.unsubscribe = this.props.container.subscribeToInputChanges(changes => {
+      console.log('changes of panels: ', changes.panels);
       if (changes.panels && this.mounted) {
         this.setState({ panels: changes.panels });
       }
+
       if (changes.viewMode && this.mounted) {
         this.setState({ viewMode: changes.viewMode });
+      }
+
+      if (changes.useMargins !== undefined && this.mounted) {
+        this.setState({ useMargins: changes.useMargins });
       }
     });
   }
@@ -211,8 +217,7 @@ class DashboardGridUi extends React.Component<DashboardGridProps, State> {
 
   public onLayoutChange = (layout: PanelLayout[]) => {
     const panels = this.state.panels;
-    const { onPanelsUpdated } = this.props;
-    const updatedPanels = layout.reduce(
+    const updatedPanels: { [key: string]: DashboardPanelState } = layout.reduce(
       (updatedPanelsAcc, panelLayout) => {
         updatedPanelsAcc[panelLayout.i] = {
           ...panels[panelLayout.i],
@@ -220,9 +225,13 @@ class DashboardGridUi extends React.Component<DashboardGridProps, State> {
         };
         return updatedPanelsAcc;
       },
-      {} as PanelStateMap
+      {} as { [key: string]: DashboardPanelState }
     );
-    onPanelsUpdated(updatedPanels);
+    this.onPanelsUpdated(updatedPanels);
+  };
+
+  public onPanelsUpdated = (panels: { [key: string]: DashboardPanelState }) => {
+    this.props.container.onPanelsUpdated(panels);
   };
 
   public onPanelFocused = (focusedPanelIndex: string): void => {

@@ -38,10 +38,9 @@ import {
   actionRegistry,
   triggerRegistry,
 } from 'plugins/embeddable_api/index';
-import { getSampleDashboardInput, getSampleDashboardPanel } from '../__test__';
 import { EditModeAction } from 'plugins/embeddable_api/__test__/actions';
 import { mount } from 'enzyme';
-import { waitFor, nextTick } from 'test_utils/enzyme_helpers';
+import { nextTick } from 'test_utils/enzyme_helpers';
 
 // @ts-ignore
 import { findTestSubject } from '@elastic/eui/lib/test';
@@ -66,7 +65,7 @@ test('HelloWorldContainer initializes embeddables', async done => {
       panels: {
         '123': {
           embeddableId: '123',
-          initialInput: { firstName: 'Sam' },
+          partialInput: { firstName: 'Sam' },
           type: HELLO_WORLD_EMBEDDABLE,
         },
       },

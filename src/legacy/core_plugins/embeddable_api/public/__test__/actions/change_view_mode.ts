@@ -17,6 +17,32 @@
  * under the License.
  */
 
-export { SayHelloAction } from './say_hello_action';
-export { EditModeAction } from './edit_mode_action';
-export { ChangeViewModeAction } from './change_view_mode';
+import { ViewMode } from 'plugins/embeddable_api/types';
+import { Action, ActionContext } from '../../actions';
+
+export const CHANGE_CONTAINER_VIEW_MODE = 'CHANGE_CONTAINER_VIEW_MODE';
+
+export class ChangeViewModeAction extends Action {
+  constructor() {
+    super(CHANGE_CONTAINER_VIEW_MODE);
+  }
+
+  getTitle() {
+    return `Flip view mode of container`;
+  }
+
+  isCompatible(context: ActionContext) {
+    return Promise.resolve(!!context.container);
+  }
+
+  execute(context: ActionContext) {
+    if (!context.container) {
+      throw new Error('Requires a container as context');
+    }
+
+    context.container.updateInput({
+      viewMode:
+        context.container.getInput().viewMode === ViewMode.VIEW ? ViewMode.EDIT : ViewMode.VIEW,
+    });
+  }
+}

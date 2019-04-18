@@ -31,6 +31,7 @@ import {
   CONTEXT_MENU_TRIGGER,
   TimeRange,
   Trigger,
+  Container,
 } from 'plugins/embeddable_api/index';
 import { SearchSource } from 'ui/courier';
 import { generateFilters } from 'ui/filter_manager/generate_filter_shape';
@@ -63,19 +64,10 @@ interface SearchScope extends ng.IScope {
 }
 
 interface SearchEmbeddableConfig {
-  savedSearch: SavedSearch;
-  editUrl: string;
-  editable: boolean;
   $rootScope: ng.IRootScopeService;
   $compile: ng.ICompileService;
-  factory: SearchEmbeddableFactory;
   courier: any;
-}
-
-interface SearchOverrides {
-  columns?: string[];
-  sort?: string[];
-  title?: string;
+  savedSearch: SavedSearch;
 }
 
 export interface SearchInput extends EmbeddableInput {
@@ -83,17 +75,20 @@ export interface SearchInput extends EmbeddableInput {
   query?: Query;
   filters?: Filters;
   hidePanelTitles?: boolean;
-  customization: SearchOverrides;
-  savedObjectId: string;
-}
-
-export interface SearchOutput extends EmbeddableOutput {
+  columns?: string[];
+  sort?: string[];
   editUrl: string;
   title: string;
   indexPatterns?: StaticIndexPattern[];
 }
 
-export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
+// export interface SearchOutput extends EmbeddableOutput {
+//   editUrl: string;
+//   title: string;
+//   indexPatterns?: StaticIndexPattern[];
+// }
+
+export class SearchEmbeddable extends Embeddable<SearchInput> {
   private readonly savedSearch: SavedSearch;
   private $rootScope: ng.IRootScopeService;
   private $compile: ng.ICompileService;
@@ -106,14 +101,11 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
   private unsubscribe?: () => void;
 
   constructor(
-    { savedSearch, editUrl, $rootScope, $compile, courier }: SearchEmbeddableConfig,
-    initialInput: SearchInput
+    { $rootScope, $compile, courier, savedSearch }: SearchEmbeddableConfig,
+    initialInput: SearchInput,
+    parent?: Container
   ) {
-    super(SEARCH_EMBEDDABLE_TYPE, initialInput, {
-      editUrl,
-      title: savedSearch.title,
-      indexPatterns: _.compact([savedSearch.searchSource.getField('index')]),
-    });
+    super(SEARCH_EMBEDDABLE_TYPE, initialInput, {}, parent);
 
     this.courier = courier;
     this.savedSearch = savedSearch;
@@ -126,10 +118,7 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
     this.unsubscribe = this.subscribeToInputChanges(() => {
       this.panelTitle = '';
       if (!this.input.hidePanelTitles) {
-        this.panelTitle =
-          this.input.customization && this.input.customization.title !== undefined
-            ? this.input.customization.title
-            : this.savedSearch.title;
+        this.panelTitle = this.input.title ? this.input.title : this.savedSearch.title;
       }
 
       if (this.searchScope) {
@@ -168,6 +157,9 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
     if (this.searchScope) {
       this.searchScope.$destroy();
       delete this.searchScope;
+    }
+    if (this.unsubscribe) {
+      this.unsubscribe();
     }
   }
 
@@ -262,7 +254,7 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
 
     searchScope.setSortOrder = (columnName, direction) => {
       searchScope.sort = [columnName, direction];
-      this.updateInput({ customization: { sort: searchScope.sort, ...this.input.customization } });
+      this.updateInput({ sort: searchScope.sort });
     };
 
     searchScope.addColumn = (columnName: string) => {
@@ -272,9 +264,7 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
       this.savedSearch.searchSource.getField('index').popularizeField(columnName, 1);
       columnActions.addColumn(searchScope.columns, columnName);
       searchScope.columns = searchScope.columns;
-      this.updateInput({
-        customization: { columns: searchScope.columns, ...this.input.customization },
-      });
+      this.updateInput({ columns: searchScope.columns });
     };
 
     searchScope.removeColumn = (columnName: string) => {
@@ -283,9 +273,8 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
       }
       this.savedSearch.searchSource.getField('index').popularizeField(columnName, 1);
       columnActions.removeColumn(searchScope.columns, columnName);
-      this.updateInput({
-        customization: { columns: searchScope.columns, ...this.input.customization },
-      });
+
+      this.updateInput({ columns: searchScope.columns });
     };
 
     searchScope.moveColumn = (columnName, newIndex: number) => {
@@ -293,9 +282,7 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
         return;
       }
       columnActions.moveColumn(searchScope.columns, columnName, newIndex);
-      this.updateInput({
-        customization: { columns: searchScope.columns, ...this.input.customization },
-      });
+      this.updateInput({ columns: searchScope.columns });
     };
 
     searchScope.filter = async (field, value, operator) => {
@@ -315,7 +302,6 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
 
       await executeTriggerActions(APPLY_FILTER_TRIGGER, {
         embeddable: this,
-        container: this.container,
         triggerContext: {
           stagedFilter,
           filters,
@@ -329,8 +315,8 @@ export class SearchEmbeddable extends Embeddable<SearchInput, SearchOutput> {
   private pushContainerStateParamsToScope(searchScope: SearchScope) {
     // If there is column or sort data on the panel, that means the original columns or sort settings have
     // been overridden in a dashboard.
-    searchScope.columns = this.input.customization.columns || this.savedSearch.columns;
-    searchScope.sort = this.input.customization.sort || this.savedSearch.sort;
+    searchScope.columns = this.input.columns || this.savedSearch.columns;
+    searchScope.sort = this.input.sort || this.savedSearch.sort;
     searchScope.sharedItemTitle = this.panelTitle;
 
     // Awful hack to get search sources to send out an initial query. Angular should be going away

@@ -21,11 +21,15 @@ import { Adapters } from 'ui/inspector';
 import { ReactNode } from 'react';
 import { Container } from '../containers';
 
-export interface IEmbeddable {
+export interface IEmbeddable<I, O> {
   destroy: () => void;
 
   getInspectorAdapters: () => Adapters | undefined;
 
+  /**
+   * Embeddable will render itself at the given node, without any panel chrome, and no
+   * actions exposed.
+   */
   render: (domNode: HTMLElement | ReactNode) => void;
 
   /**

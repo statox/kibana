@@ -16,12 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import React from 'react';
+import { getNewPlatform } from 'ui/new_platform';
+import { ExecuteActionContext } from 'plugins/embeddable_api/actions';
+import { AddPanelFlyout } from './add_panel_flyout';
 
-import { SimpleSavedObject } from 'ui/saved_objects';
-import { SavedObjectAttributes } from '../../../../server/saved_objects';
-
-export interface TriggerActionsSavedObjectAttributes extends SavedObjectAttributes {
-  actions: string;
+export async function getActionData(context: ExecuteActionContext) {
+  return new Promise<{ title: string | undefined }>(resolve => {
+    getNewPlatform().setup.core.overlays.openFlyout(
+      <AddPanelFlyout
+        container={context.container}
+        embeddable={context.embeddable}
+        onReset={() => resolve({ title: undefined })}
+        onUpdatePanelTitle={title => resolve({ title })}
+      />,
+      {
+        'data-test-subj': 'addPanelFlyout',
+      }
+    );
+  });
 }
-
-export type TriggerActionsSavedObject = SimpleSavedObject<TriggerActionsSavedObjectAttributes>;
