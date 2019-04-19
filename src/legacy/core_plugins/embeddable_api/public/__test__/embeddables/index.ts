@@ -24,3 +24,10 @@ export {
 export { HelloWorldEmbeddable, HelloWorldInput } from './hello_world_embeddable';
 export { HelloWorldContainer } from './hello_world_container';
 export { EmptyEmbeddable } from './empty_embeddable';
+export { FilterableEmbeddable, FILTERABLE_EMBEDDABLE } from './filterable_embeddable';
+export {
+  FilterableContainer,
+  FILTERABLE_CONTAINER,
+  FilterableContainerInput,
+} from './filterable_container';
+export { FilterableEmbeddableFactory } from './filterable_embeddable_factory';

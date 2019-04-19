@@ -102,9 +102,7 @@ export class EmbeddablePanel extends React.Component<Props, State> {
     const classes = classNames('embPanel', {
       'embPanel--editing': !viewOnlyMode,
     });
-    const customization = this.props.embeddable.getInput().customization;
-    const customizedTitle = customization ? customization.title : undefined;
-    const title = customizedTitle ? customizedTitle : this.props.embeddable.getInput().title;
+    const title = this.props.embeddable.getTitle();
     return (
       <EuiPanel className={classes} data-test-subj="embeddablePanel" paddingSize="none">
         <PanelHeader
@@ -128,7 +126,6 @@ export class EmbeddablePanel extends React.Component<Props, State> {
 
     const actions = await actionRegistry.getActionsForTrigger(CONTEXT_MENU_TRIGGER, {
       embeddable: this.props.embeddable,
-      container: this.props.container,
     });
 
     const contextMenuPanel = new ContextMenuPanel({
@@ -146,7 +143,6 @@ export class EmbeddablePanel extends React.Component<Props, State> {
     if (
       await customizePanelAction.isCompatible({
         embeddable: this.props.embeddable,
-        container: this.props.container,
       })
     ) {
       actions.push(customizePanelAction);
@@ -156,7 +152,6 @@ export class EmbeddablePanel extends React.Component<Props, State> {
     if (
       await addPanelAction.isCompatible({
         embeddable: this.props.embeddable,
-        container: this.props.container,
       })
     ) {
       actions.push(addPanelAction);
@@ -168,7 +163,6 @@ export class EmbeddablePanel extends React.Component<Props, State> {
           id: action.id,
           displayName: action.getTitle({
             embeddable: this.props.embeddable,
-            container: this.props.container,
           }),
           parentPanelId: 'mainMenu',
         },
@@ -176,10 +170,9 @@ export class EmbeddablePanel extends React.Component<Props, State> {
           priority: action.priority,
           icon: action.getIcon({
             embeddable: this.props.embeddable,
-            container: this.props.container,
           }),
-          onClick: ({ embeddable, container }) => {
-            action.execute({ embeddable, container });
+          onClick: ({ embeddable }) => {
+            action.execute({ embeddable });
             closeMyContextMenuPanel();
           },
         }

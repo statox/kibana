@@ -76,12 +76,12 @@ test('Container initializes embeddables', async done => {
 test('Container.addNewEmbeddable', async () => {
   const container = createHelloWorldContainer({ id: 'hello', panels: {} });
   const embeddable = await container.addNewEmbeddable<HelloWorldInput>(HELLO_WORLD_EMBEDDABLE, {
-    firstName: 'Kibana',
+    firstName: 'Susy',
   });
   expect(embeddable).toBeDefined();
 
   if (!isErrorEmbeddable(embeddable)) {
-    expect(embeddable.getInput().firstName).toBe('Kibana');
+    expect(embeddable.getInput().firstName).toBe('Susy');
   } else {
     expect(false).toBe(true);
   }
@@ -106,7 +106,8 @@ test('Container.removeEmbeddable removes and cleans up', async () => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Kibana',
+      firstName: 'Susy',
+      lastName: 'Q',
     }
   );
 
@@ -115,7 +116,7 @@ test('Container.removeEmbeddable removes and cleans up', async () => {
     return;
   }
 
-  embeddable.graduateWithPhd();
+  embeddable.getMarried('Z');
 
   container.removeEmbeddable(embeddable.id);
 
@@ -128,7 +129,7 @@ test('Container.removeEmbeddable removes and cleans up', async () => {
     return;
   }
 
-  expect(embeddable.loseDoctorate).toThrowError();
+  expect(embeddable.getDivorced).toThrowError();
 });
 
 test('Container.subscribeToChanges is called when child embeddable input is updated', async () => {
@@ -136,7 +137,8 @@ test('Container.subscribeToChanges is called when child embeddable input is upda
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Kibana',
+      firstName: 'Susy',
+      lastName: 'Q',
     }
   );
 
@@ -148,15 +150,15 @@ test('Container.subscribeToChanges is called when child embeddable input is upda
   const changes = jest.fn();
   const unsubcribe = container.subscribeToChanges(changes);
 
-  embeddable.graduateWithPhd();
+  embeddable.getMarried('Z');
 
   expect(changes).toBeCalledTimes(1);
 
-  expect(embeddable.getInput().nameTitle === 'Dr.');
+  expect(embeddable.getInput().lastName === 'Z');
 
-  embeddable.loseDoctorate();
+  embeddable.getDivorced();
 
-  expect(embeddable.getInput().nameTitle === '');
+  expect(embeddable.getInput().lastName === 'Q');
 
   expect(changes).toBeCalledTimes(2);
 
@@ -172,7 +174,8 @@ test('Container.subscribeToInputChanges', async () => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
+      id: 'Susy',
     }
   );
 
@@ -183,7 +186,7 @@ test('Container.subscribeToInputChanges', async () => {
 
   const changes = jest.fn();
   const input = container.getInput();
-  expect(input.panels[embeddable.id].partialInput).toEqual({ firstName: 'Joe' });
+  expect(input.panels[embeddable.id].partialInput).toEqual({ firstName: 'Susy', id: 'Susy' });
 
   const unsubcribe = container.subscribeToInputChanges(changes);
   embeddable.graduateWithPhd();
@@ -194,8 +197,9 @@ test('Container.subscribeToInputChanges', async () => {
       [embeddable.id]: {
         ...input.panels[embeddable.id],
         partialInput: {
-          firstName: 'Joe',
+          firstName: 'Susy',
           nameTitle: 'Dr.',
+          id: 'Susy',
         },
       },
     },
@@ -203,7 +207,8 @@ test('Container.subscribeToInputChanges', async () => {
   expect(changes).toBeCalledWith(expectedChanges);
   expect(container.getInput().panels[embeddable.id].partialInput).toEqual({
     nameTitle: 'Dr.',
-    firstName: 'Joe',
+    firstName: 'Susy',
+    id: 'Susy',
   });
   unsubcribe();
 });
@@ -213,7 +218,8 @@ test('Container.subscribeToInputChanges not triggered if state is the same', asy
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
+      id: 'Susy',
     }
   );
 
@@ -224,7 +230,10 @@ test('Container.subscribeToInputChanges not triggered if state is the same', asy
 
   const changes = jest.fn();
   const input = container.getInput();
-  expect(input.panels[embeddable.id].partialInput).toEqual({ firstName: 'Joe' });
+  expect(input.panels[embeddable.id].partialInput).toEqual({
+    id: 'Susy',
+    firstName: 'Susy',
+  });
   const unsubcribe = container.subscribeToInputChanges(changes);
   embeddable.graduateWithPhd();
   expect(changes).toBeCalledTimes(1);
@@ -238,7 +247,8 @@ test('Container view mode change propagates to children', async () => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
+      id: 'Susy',
     }
   );
 
@@ -249,12 +259,13 @@ test('Container view mode change propagates to children', async () => {
   expect(embeddable.getInput().viewMode).toBe(ViewMode.EDIT);
 });
 
-test(`Container updates its state when a child's input is updated`, async () => {
+test(`Container updates its state when a child's input is updated`, async done => {
   const container = createHelloWorldContainer({ id: 'hello', panels: {}, viewMode: ViewMode.VIEW });
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      id: '123',
+      firstName: 'Susy',
     }
   );
 
@@ -262,14 +273,16 @@ test(`Container updates its state when a child's input is updated`, async () => 
     throw new Error('Error adding embeddable');
   }
 
-  embeddable.graduateWithPhd();
-
-  const newContainer = createHelloWorldContainer(container.getInput());
-
-  newContainer.subscribeToOutputChanges(() => {
-    const newEmbeddable = newContainer.getEmbeddable<HelloWorldEmbeddable>(embeddable.id);
-    expect(newEmbeddable.getInput().title).toBe('Dr.');
+  container.subscribeToInputChanges(() => {
+    const newContainer = createHelloWorldContainer(container.getInput());
+    newContainer.subscribeToOutputChanges(() => {
+      const newEmbeddable = newContainer.getEmbeddable<HelloWorldEmbeddable>(embeddable.id);
+      expect(newEmbeddable.getInput().nameTitle).toBe('Dr.');
+      done();
+    });
   });
+
+  embeddable.graduateWithPhd();
 });
 
 test(`Derived container state passed to children`, async () => {
@@ -277,7 +290,7 @@ test(`Derived container state passed to children`, async () => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
     }
   );
 
@@ -303,7 +316,7 @@ test(`Can subscribe to children embeddable updates`, async done => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
     }
   );
 
@@ -324,7 +337,7 @@ test('Test nested reactions', async done => {
   const embeddable = await container.addNewEmbeddable<HelloWorldInput, HelloWorldEmbeddable>(
     HELLO_WORLD_EMBEDDABLE,
     {
-      firstName: 'Joe',
+      firstName: 'Susy',
     }
   );
 

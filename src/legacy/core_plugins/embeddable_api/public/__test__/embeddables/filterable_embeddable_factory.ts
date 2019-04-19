@@ -16,23 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
-import { getNewPlatform } from 'ui/new_platform';
-import { ExecuteActionContext } from 'plugins/embeddable_api/actions';
-import { AddPanelFlyout } from './add_panel_flyout';
 
-export async function getActionData(context: ExecuteActionContext) {
-  return new Promise<{ title: string | undefined }>(resolve => {
-    getNewPlatform().setup.core.overlays.openFlyout(
-      <AddPanelFlyout
-        container={context.container}
-        embeddable={context.embeddable}
-        onReset={() => resolve({ title: undefined })}
-        onUpdatePanelTitle={title => resolve({ title })}
-      />,
-      {
-        'data-test-subj': 'addPanelFlyout',
-      }
-    );
-  });
+import { embeddableFactories, EmbeddableFactory } from 'plugins/embeddable_api/index';
+import { Container } from 'plugins/embeddable_api/containers';
+import {
+  FilterableEmbeddable,
+  FilterableEmbeddableInput,
+  FILTERABLE_EMBEDDABLE,
+} from './filterable_embeddable';
+
+export class FilterableEmbeddableFactory extends EmbeddableFactory<FilterableEmbeddableInput> {
+  constructor() {
+    super({
+      name: FILTERABLE_EMBEDDABLE,
+    });
+  }
+
+  public getOutputSpec() {
+    return {};
+  }
+
+  public create(initialInput: FilterableEmbeddableInput, parent?: Container) {
+    console.log('FilterableEmbeddableFactory: input is ', initialInput);
+    return Promise.resolve(new FilterableEmbeddable(initialInput, parent));
+  }
 }
+
+embeddableFactories.registerFactory(new FilterableEmbeddableFactory());

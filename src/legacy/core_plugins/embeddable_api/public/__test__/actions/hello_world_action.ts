@@ -17,10 +17,20 @@
  * under the License.
  */
 
-import { Action } from './action';
+import { Action } from '../../actions';
 
-export function isAction(
-  action: Action | { message: string; statusCode?: number }
-): action is Action {
-  return (action as Action).execute === undefined;
+export const HELLO_WORLD_ACTION = 'HELLO_WORLD_ACTION';
+
+export class HelloWorldAction extends Action {
+  constructor() {
+    super(HELLO_WORLD_ACTION);
+  }
+
+  getTitle() {
+    return 'Hello world!';
+  }
+
+  execute() {
+    alert('Hello world!');
+  }
 }

@@ -44,6 +44,7 @@ export default {
     'packages/kbn-ui-framework/src/services/**/*.js',
     '!packages/kbn-ui-framework/src/services/index.js',
     '!packages/kbn-ui-framework/src/services/**/*/index.js',
+    'src/legacy/core_plugins/embeddable_api/public/**/*',
   ],
   moduleNameMapper: {
     '^plugins/([^\/.]*)/(.*)': '<rootDir>/src/legacy/core_plugins/$1/public/$2',

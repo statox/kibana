@@ -46,13 +46,13 @@ export class AddPanelAction extends Action {
     return <EuiIcon type="plusInCircleFilled" />;
   }
 
-  public isCompatible({ embeddable }: { embeddable: Embeddable; container?: Container }) {
+  public isCompatible({ embeddable }: { embeddable: Embeddable }) {
     return Promise.resolve(
       embeddable.isContainer && (embeddable as Container).getViewMode() === ViewMode.EDIT
     );
   }
 
-  public execute({ embeddable, container }: { embeddable: Container; container?: Container }) {
+  public execute({ embeddable }: { embeddable: Container }) {
     if (!embeddable) {
       throw new Error('Customize panel title action requires an embeddable as context.');
     }

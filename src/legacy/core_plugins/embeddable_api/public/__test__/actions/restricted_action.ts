@@ -17,19 +17,24 @@
  * under the License.
  */
 
-export {
-  EmptyEmbeddable,
-  HelloWorldEmbeddableFactory,
-  HELLO_WORLD_EMBEDDABLE,
-  HelloWorldEmbeddable,
-  HelloWorldInput,
-  HelloWorldContainer,
-  FilterableContainer,
-  FilterableEmbeddable,
-  FilterableEmbeddableFactory,
-  FILTERABLE_EMBEDDABLE,
-  FILTERABLE_CONTAINER,
-  FilterableContainerInput,
-} from './embeddables';
+import { Action, ActionContext } from '../../actions';
 
-export { SayHelloAction, EditModeAction, HelloWorldAction, RestrictedAction } from './actions';
+export const RESTRICTED_ACTION = 'RESTRICTED_ACTION';
+
+export class RestrictedAction extends Action {
+  private isCompatibleFn: (context: ActionContext) => boolean;
+  constructor(isCompatible: (context: ActionContext) => boolean) {
+    super(RESTRICTED_ACTION);
+    this.isCompatibleFn = isCompatible;
+  }
+
+  getTitle() {
+    return `I am only sometimes compatible`;
+  }
+
+  isCompatible(context: ActionContext) {
+    return Promise.resolve(this.isCompatibleFn(context));
+  }
+
+  execute() {}
+}

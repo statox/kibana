@@ -33,6 +33,10 @@ export class EmbeddableFactoryRegistry {
   public getFactories() {
     return this.factories;
   }
+
+  public reset() {
+    this.factories = {};
+  }
 }
 
 export const embeddableFactories = new EmbeddableFactoryRegistry();

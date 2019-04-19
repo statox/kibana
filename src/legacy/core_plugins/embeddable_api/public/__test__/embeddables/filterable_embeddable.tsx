@@ -16,13 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Container } from '../../containers';
+import { EmbeddableOutput, EmbeddableInput, Embeddable } from '../../embeddables';
+import { Filter } from '../../types';
 
-import { Embeddable, EmbeddableInput } from './embeddables';
+export const FILTERABLE_EMBEDDABLE = 'FILTERABLE_EMBEDDABLE';
 
-export function dispatchInputChanges<I extends EmbeddableInput>(embeddable: Embeddable<I>, changes: Partial<I>) {
-  if (embeddable.parent) {
-    embeddable.parent.updateEmbeddableInput(embeddable.id, changes);
-  } else {
-    embeddable.
+export interface FilterableEmbeddableInput extends EmbeddableInput {
+  filters: Filter[];
+}
+
+export class FilterableEmbeddable extends Embeddable<FilterableEmbeddableInput, EmbeddableOutput> {
+  constructor(initialInput: FilterableEmbeddableInput, parent?: Container) {
+    super(FILTERABLE_EMBEDDABLE, initialInput, {}, parent);
   }
+
+  public render() {}
 }
