@@ -75,8 +75,8 @@ image:images/tsvb-table.png["Table Visualization"]
 [[time-series-interface]]
 === Interface Overview
 
-The user interface for each visualization is compose of a "Data" tab and "Panel
-Options". The only exception to that is the Time Series and Markdown visualizations;
+The user interface for each visualization is composed of a "Data" tab and "Panel
+Options". The only exception to that is the Time Series and Markdown visualizations:
 the Time Series has a third tab for annotations and the Markdown has a third tab for
 the editor.
 
